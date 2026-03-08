@@ -1,19 +1,29 @@
 # Privacy Screen
 
-A React Native (Expo) application that automatically protects your screen content from prying eyes using device orientation sensors. When you tilt your phone away from your viewing position, the screen dims with a privacy overlay.
+A React Native (Expo) application that automatically protects your screen content from prying eyes using device orientation sensors AND front camera face detection. When you tilt your phone away OR someone else looks at your screen, the screen dims with a privacy overlay.
 
 ## Features
 
-- **Automatic Detection**: Uses device gyroscope and accelerometer to detect when the phone is tilted away from your viewing position
-- **Privacy Overlay**: Dims the screen with a configurable dark overlay and optional diagonal pattern
-- **Orientation-Only Mode**: Works entirely offline using motion sensors (no camera required)
-- **Hysteresis Control**: Configurable delays to prevent flickering between protected/unprotected states
-- **Customizable Settings**:
-  - Filter intensity (opacity level)
-  - Pattern overlay toggle
-  - Response delay (hysteresis)
-  - Orientation thresholds
-  - Persistent settings between sessions
+### Core Detection
+- **Orientation Detection**: Uses device gyroscope/accelerometer to detect viewing position
+- **Face Detection**: Uses front camera to identify if the user is looking at the phone
+- **Multi-Face Detection**: Detects if someone else is looking (multiple faces = privacy triggered)
+- **User Identification**: Enroll your face to distinguish yourself from others
+
+### Privacy Protection
+- **Automatic Protection**: Screen dims when phone tilted away from viewing position
+- **Stranger Detection**: Triggers protection when unrecognized face detected
+- **Face Enrollment**: Optional enrollment of your face for personalized identification
+- **Configurable Sensitivity**: Adjustable thresholds for orientation and face similarity
+
+### Settings
+- Filter intensity (opacity level)
+- Pattern overlay toggle
+- Response delay (hysteresis)
+- Orientation thresholds
+- Face detection toggle
+- Face enrollment management
+- Persistent settings between sessions
 
 ## Installation
 
@@ -21,26 +31,52 @@ A React Native (Expo) application that automatically protects your screen conten
 # Install dependencies
 npm install
 
-# Start the development server
-npm start
+# Generate native Android project
+npx expo prebuild --platform android
 
-# Run on iOS
-npm run ios
-
-# Run on Android
-npm run android
+# Build debug APK
+cd android && ./gradlew assembleDebug
 ```
 
 ## Usage
 
+### First Launch
 1. Launch the app
-2. Enable Privacy in the settings
-3. Hold your phone in your normal viewing position to "teach" the app your orientation
-4. Tilt the phone away (sideways, forward, or backward) to see the privacy overlay activate
-5. Adjust settings as needed:
-   - **Filter Intensity**: Controls overlay opacity (50-100%)
-   - **Response Delay**: Time before filter activates (100-2000ms)
-   - **Pattern Overlay**: Adds diagonal lines for extra privacy
+2. Complete orientation calibration (hold phone in your viewing positions)
+3. Optionally enroll your face for enhanced security
+
+### Normal Usage
+1. Enable Privacy in the settings
+2. **Orientation mode**: Tilt phone away to activate privacy
+3. **Face detection mode**: 
+   - Enroll your face in Settings
+   - App detects if YOU are looking or someone else
+   - Triggers protection for strangers or multiple faces
+
+### Face Enrollment
+1. Go to Settings
+2. Tap "Enroll My Face"
+3. Position your face in the frame
+4. Tap "Enroll My Face" button
+5. Your face template is stored locally (not images!)
+
+## Detection Logic
+
+### Protection Triggers (ANY of these)
+```
+protection = orientation_tilted_away 
+          OR multiple_faces_detected 
+          OR (face_detection_enabled AND NOT_same_person)
+```
+
+### Orientation Detection
+- **Pitch** (forward/back): Must be within threshold (default: ±30°)
+- **Roll** (side tilt): Must be within threshold (default: ±15°)
+
+### Face Detection
+- Compares detected face against enrolled template
+- Uses similarity threshold (default: 65%)
+- Multiple faces always triggers protection
 
 ## Technical Architecture
 
@@ -52,45 +88,56 @@ npm run android
 | `PrivacyContext` | Global state management for privacy settings |
 | `PrivacyOverlay` | Full-screen overlay component |
 | `SensorService` | Handles device orientation sensors |
+| `PrivacyCamera` | Hidden camera for face detection |
+| `FaceEnrollmentService` | Face template storage & comparison |
+| `FaceEnrollmentScreen` | UI for enrolling user face |
 | `SettingsStorage` | Persists settings to AsyncStorage |
 
-### Detection Logic
-
-The app uses device orientation sensors (gyroscope/accelerometer) to determine if the phone is in a "viewing orientation":
-
-- **Pitch** (forward/back tilt): Must be within configurable threshold (default: -30° to +30°)
-- **Roll** (side tilt): Must be within configurable threshold (default: ±15°)
-- **Yaw** (rotation): Not used in orientation-only mode
-
-When the device leaves the viewing orientation for longer than the hysteresis delay, the privacy overlay activates.
-
-### State Flow
-
-```
-Device Orientation → SensorService → PrivacyContext → PrivacyOverlay
-                                        ↓
-                                   Settings
-```
+### Face Template System
+- Extracts facial landmarks and ratios (NOT images)
+- Stores numerical templates only
+- Compares using: landmark positions, feature ratios, eye openness
+- All processing on-device - NO network requests
 
 ## Permissions Required
 
 ### iOS
-- `NSMotionUsageDescription`: Motion sensor access for orientation detection
+- `NSMotionUsageDescription`: Motion sensor access
+- `NSCameraUsageDescription`: Front camera for face detection
 
 ### Android
 - `HIGH_SAMPLING_RATE_SENSORS`: For accurate sensor readings
+- `CAMERA`: Front camera for face detection
 
-## Security Notes
+## Security & Privacy
 
-- **No Camera Required**: This app operates in orientation-only mode, requiring no camera permissions
-- **Offline Operation**: All detection happens locally on-device using sensors
-- **No Data Transmission**: Settings are stored locally only; no network requests are made
-- **Minimal Permissions**: Only requests motion sensor access, nothing else
+### What We DON'T Do
+- ❌ Upload face data to any server
+- ❌ Store actual photos/images
+- ❌ Require internet connection
+- ❌ Track your usage
+
+### What We DO
+- ✅ All processing on-device
+- ✅ Only face templates stored (numerical data)
+- ✅ User can clear enrollment anytime
+- ✅ Transparent about data storage
+- ✅ Camera only activates when protection enabled
 
 ## Supported Platforms
 
 - iOS 13.0+
 - Android API 24+ (Android 7.0+)
+
+## Build
+
+```bash
+# Android debug APK
+npx expo prebuild --platform android
+cd android && ./gradlew assembleDebug
+
+# APK location: android/app/build/outputs/apk/debug/app-debug.apk
+```
 
 ## License
 
