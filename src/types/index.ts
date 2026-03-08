@@ -35,7 +35,6 @@ export interface PrivacyThresholds {
 
 export interface PrivacySettings {
   enabled: boolean;
-  useCamera: boolean;        // Use camera + orientation (true) or orientation only (false)
   filterIntensity: number;   // 0-1, overlay opacity
   enablePattern: boolean;    // Show diagonal pattern overlay
   hysteresisDelay: number;   // Delay before enabling filter (ms) - for enable
@@ -72,7 +71,6 @@ export type PrivacyAction =
 
 export const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
   enabled: true,
-  useCamera: true,
   filterIntensity: 0.85,
   enablePattern: true,
   hysteresisDelay: 500,

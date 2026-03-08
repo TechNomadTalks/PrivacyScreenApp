@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { usePrivacy } from "../context/PrivacyContext";
+import { PrivacySettings } from "../types";
 
 interface SettingsProps {
   onRequestPermission?: () => void;
@@ -21,19 +22,19 @@ export function Settings({ onRequestPermission }: SettingsProps) {
   const { settings, updateSettings, state } = usePrivacy();
 
   const handleToggleEnabled = () => {
-    updateSettings((prev: any) => ({ enabled: !prev.enabled }));
+    updateSettings((prev: PrivacySettings) => ({ enabled: !prev.enabled }));
   };
 
   const handleTogglePattern = () => {
-    updateSettings((prev: any) => ({ enablePattern: !prev.enablePattern }));
+    updateSettings((prev: PrivacySettings) => ({ enablePattern: !prev.enablePattern }));
   };
 
   const handleTogglePersist = () => {
-    updateSettings((prev: any) => ({ persistSettings: !prev.persistSettings }));
+    updateSettings((prev: PrivacySettings) => ({ persistSettings: !prev.persistSettings }));
   };
 
   const handleIntensityChange = (increase: boolean) => {
-    updateSettings((prev: any) => ({ 
+    updateSettings((prev: PrivacySettings) => ({ 
       filterIntensity: increase 
         ? Math.min(1, prev.filterIntensity + 0.1)
         : Math.max(0.5, prev.filterIntensity - 0.1)
@@ -41,7 +42,7 @@ export function Settings({ onRequestPermission }: SettingsProps) {
   };
 
   const handleHysteresisChange = (increase: boolean) => {
-    updateSettings((prev: any) => ({ 
+    updateSettings((prev: PrivacySettings) => ({ 
       hysteresisDelay: increase 
         ? Math.min(2000, prev.hysteresisDelay + 100)
         : Math.max(100, prev.hysteresisDelay - 100)

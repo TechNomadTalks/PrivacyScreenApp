@@ -21,9 +21,10 @@ interface PrivacyOverlayProps {
 }
 
 export function PrivacyOverlay({ 
-  intensity = 0.85, 
+  intensity: intensityProp = 0.85, 
   showPattern = true 
 }: PrivacyOverlayProps) {
+  const intensity = Number.isFinite(intensityProp) ? Math.max(0, Math.min(1, intensityProp)) : 0.85;
   const { state, settings } = usePrivacy();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const patternOpacity = useRef(new Animated.Value(0)).current;

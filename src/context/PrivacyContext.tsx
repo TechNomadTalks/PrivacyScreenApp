@@ -11,8 +11,7 @@ import {
   DeviceOrientation,
   FaceDetectionResult,
   DEFAULT_PRIVACY_SETTINGS,
-  PrivacyThresholds,
-  DEFAULT_ORIENTATION_THRESHOLDS
+  PrivacyThresholds
 } from "../types";
 import { SensorServiceClass, createSensorService } from "../services/SensorService";
 import SettingsStorage from "../services/SettingsStorage";
@@ -73,14 +72,28 @@ export function PrivacyProvider({ children, onPrivacyChange }: PrivacyProviderPr
   const [settings, setSettings] = React.useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
   const [isLoading, setIsLoading] = React.useState(true);
   
-  // Use constants instead of state for thresholds (they never change)
-  const thresholds: PrivacyThresholds = useMemo(() => DEFAULT_ORIENTATION_THRESHOLDS, []);
+  const thresholds: PrivacyThresholds = useMemo(() => ({
+    yawThreshold: settings.yawThreshold,
+    pitchThresholdMin: settings.pitchThresholdMin,
+    pitchThresholdMax: settings.pitchThresholdMax,
+    rollThreshold: settings.rollThreshold,
+    pitchThresholdViewingMin: settings.pitchThresholdViewingMin,
+    pitchThresholdViewingMax: settings.pitchThresholdViewingMax,
+    eyeOpenThreshold: settings.eyeOpenThreshold,
+  }), [
+    settings.yawThreshold,
+    settings.pitchThresholdMin,
+    settings.pitchThresholdMax,
+    settings.rollThreshold,
+    settings.pitchThresholdViewingMin,
+    settings.pitchThresholdViewingMax,
+    settings.eyeOpenThreshold,
+  ]);
   
   const isProtectedRef = useRef(false);
   const lastPrivacyEnableTime = useRef<number>(0);
   const lastPrivacyDisableTime = useRef<number>(0);
   
-  // Create our own sensor service instance
   const sensorService = useMemo(() => createSensorService(), []);
   
   // Load settings on mount
@@ -140,15 +153,8 @@ export function PrivacyProvider({ children, onPrivacyChange }: PrivacyProviderPr
       return;
     }
 
-    let shouldBeProtected = false;
-
     const viewingOrientation = SensorServiceClass.isViewingOrientation(state.orientation, thresholds);
-
-    if (!viewingOrientation) {
-      shouldBeProtected = true;
-    } else {
-      shouldBeProtected = false;
-    }
+    const shouldBeProtected = !viewingOrientation;
 
     const now = Date.now();
     const hysteresisEnableDelay = settings.hysteresisDelay;
@@ -172,10 +178,20 @@ export function PrivacyProvider({ children, onPrivacyChange }: PrivacyProviderPr
   }, [settings, state.orientation, thresholds, handlePrivacyChange]);
 
   const updateOrientation = useCallback((orientation: DeviceOrientation) => {
-    dispatch({ type: "SET_ORIENTATION", payload: orientation });
+    if (!orientation || typeof orientation.pitch !== 'number' || typeof orientation.roll !== 'number') {
+      return;
+    }
+    
+    const validOrientation: DeviceOrientation = {
+      pitch: isFinite(orientation.pitch) ? orientation.pitch : 0,
+      roll: isFinite(orientation.roll) ? orientation.roll : 0,
+      yaw: orientation.yaw !== undefined && isFinite(orientation.yaw) ? orientation.yaw : 0,
+    };
+    
+    dispatch({ type: "SET_ORIENTATION", payload: validOrientation });
     dispatch({ 
       type: "SET_VIEWING_ORIENTATION", 
-      payload: SensorServiceClass.isViewingOrientation(orientation, thresholds) 
+      payload: SensorServiceClass.isViewingOrientation(validOrientation, thresholds) 
     });
   }, [thresholds]);
 

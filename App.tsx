@@ -1,21 +1,34 @@
 import React, { useCallback } from "react";
-import { StyleSheet, View, StatusBar } from "react-native";
+import { StyleSheet, View, StatusBar, ActivityIndicator, Text } from "react-native";
 
 import { PrivacyProvider, usePrivacy } from "./src/context/PrivacyContext";
 import { PrivacyOverlay } from "./src/components/PrivacyOverlay";
 import Settings from "./src/components/Settings";
 import { useSensors } from "./src/hooks/useSensors";
 import { DeviceOrientation } from "./src/types";
+import ErrorBoundary from "./src/components/ErrorBoundary";
+
+function LoadingScreen() {
+  return (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="#00BCD4" />
+      <Text style={styles.loadingText}>Loading settings...</Text>
+    </View>
+  );
+}
 
 function MainApp() {
-  const { state, settings, updateOrientation } = usePrivacy();
+  const { state, settings, updateOrientation, isLoading } = usePrivacy();
 
   const handleOrientationChange = useCallback((orientation: DeviceOrientation) => {
     updateOrientation(orientation);
   }, [updateOrientation]);
 
-  // Start sensors - always enabled when privacy is enabled
-  useSensors({ enabled: settings.enabled, onOrientationChange: handleOrientationChange });
+  useSensors({ enabled: !isLoading && settings.enabled, onOrientationChange: handleOrientationChange });
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
 
   return (
     <View style={styles.container}>
@@ -33,9 +46,11 @@ function MainApp() {
 
 export default function App() {
   return (
-    <PrivacyProvider>
-      <MainApp />
-    </PrivacyProvider>
+    <ErrorBoundary>
+      <PrivacyProvider>
+        <MainApp />
+      </PrivacyProvider>
+    </ErrorBoundary>
   );
 }
 
@@ -46,5 +61,16 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: "#121212",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    color: "#9E9E9E",
+    marginTop: 16,
+    fontSize: 14,
   },
 });
