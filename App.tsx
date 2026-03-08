@@ -47,7 +47,7 @@ function MainApp() {
   return (
     <View style={styles.container}>
       <PrivacyOverlay 
-        intensity={settings.filterIntensity} 
+        maxIntensity={settings.filterIntensity} 
         showPattern={settings.enablePattern} 
       />
       <View style={styles.content}>

@@ -10,6 +10,7 @@ import {
   PrivacySettings, 
   DeviceOrientation,
   DEFAULT_PRIVACY_SETTINGS,
+  CalibrationProfile,
 } from "../types";
 import { SensorServiceClass, createSensorService } from "../services/SensorService";
 import SettingsStorage from "../services/SettingsStorage";
@@ -32,6 +33,7 @@ const initialState: PrivacyState = {
   multipleFacesDetected: false,
   orientation: { pitch: 0, roll: 0, yaw: 0 },
   cameraActive: false,
+  protectionLevel: 0,
 };
 
 function privacyReducer(state: PrivacyState, action: PrivacyAction): PrivacyState {
@@ -42,6 +44,8 @@ function privacyReducer(state: PrivacyState, action: PrivacyAction): PrivacyStat
       return { ...state, isViewingOrientation: action.payload };
     case "SET_PROTECTED":
       return { ...state, isProtected: action.payload };
+    case "SET_PROTECTION_LEVEL":
+      return { ...state, protectionLevel: action.payload };
     default:
       return state;
   }
@@ -53,17 +57,24 @@ interface PrivacyProviderProps {
   children: React.ReactNode;
 }
 
-function isOrientationInProfile(
-  orientation: DeviceOrientation, 
-  profile: { pitchMin: number; pitchMax: number; rollMin: number; rollMax: number }
-): boolean {
+function calculateDistanceFromProfile(
+  orientation: DeviceOrientation,
+  profile: CalibrationProfile
+): number {
   const { pitch, roll } = orientation;
-  return (
-    pitch >= profile.pitchMin &&
-    pitch <= profile.pitchMax &&
-    roll >= profile.rollMin &&
-    roll <= profile.rollMax
-  );
+  const pitchCenter = profile.pitchCenter;
+  const rollCenter = profile.rollCenter;
+  
+  const pitchDistance = Math.abs(pitch - pitchCenter);
+  const rollDistance = Math.abs(roll - rollCenter);
+  
+  const pitchRange = (profile.pitchMax - profile.pitchMin) / 2;
+  const rollRange = (profile.rollMax - profile.rollMin) / 2;
+  
+  const normalizedPitch = pitchRange > 0 ? pitchDistance / pitchRange : 0;
+  const normalizedRoll = rollRange > 0 ? rollDistance / rollRange : 0;
+  
+  return Math.max(0, Math.max(normalizedPitch, normalizedRoll) - 1);
 }
 
 export function PrivacyProvider({ children }: PrivacyProviderProps) {
@@ -75,6 +86,7 @@ export function PrivacyProvider({ children }: PrivacyProviderProps) {
   const lastPrivacyEnableTime = useRef<number>(0);
   const lastPrivacyDisableTime = useRef<number>(0);
   const orientationHistoryRef = useRef<DeviceOrientation[]>([]);
+  const protectionLevelRef = useRef(0);
   
   const sensorService = useMemo(() => createSensorService(), []);
   
@@ -116,23 +128,33 @@ export function PrivacyProvider({ children }: PrivacyProviderProps) {
 
   const processPrivacyDecision = useCallback((orientation: DeviceOrientation) => {
     if (!settings.enabled) {
-      if (isProtectedRef.current) {
+      if (isProtectedRef.current || protectionLevelRef.current > 0) {
         dispatch({ type: "SET_PROTECTED", payload: false });
+        dispatch({ type: "SET_PROTECTION_LEVEL", payload: 0 });
         isProtectedRef.current = false;
+        protectionLevelRef.current = 0;
       }
       return;
     }
 
-    orientationHistoryRef.current.push(orientation);
-    if (orientationHistoryRef.current.length > 10) {
-      orientationHistoryRef.current.shift();
+    const profiles = settings.calibration.profiles;
+    
+    let minDistance = Infinity;
+    for (const profile of profiles) {
+      const distance = calculateDistanceFromProfile(orientation, profile);
+      minDistance = Math.min(minDistance, distance);
     }
 
-    const inAnyProfile = settings.calibration.profiles.some(profile => 
-      isOrientationInProfile(orientation, profile)
-    );
+    const maxDistance = 2;
+    let protectionLevel = 0;
+    if (profiles.length > 0) {
+      protectionLevel = Math.min(1, Math.max(0, minDistance / maxDistance));
+    }
 
-    const shouldBeProtected = !inAnyProfile;
+    protectionLevelRef.current = protectionLevel;
+    dispatch({ type: "SET_PROTECTION_LEVEL", payload: protectionLevel });
+
+    const shouldBeProtected = protectionLevel > 0.3;
 
     const now = Date.now();
     const hysteresisEnableDelay = settings.hysteresisDelay;
@@ -166,13 +188,8 @@ export function PrivacyProvider({ children }: PrivacyProviderProps) {
     
     dispatch({ type: "SET_ORIENTATION", payload: validOrientation });
     
-    const isViewing = settings.calibration.profiles.some(profile => 
-      isOrientationInProfile(validOrientation, profile)
-    );
-    dispatch({ type: "SET_VIEWING_ORIENTATION", payload: isViewing });
-    
     processPrivacyDecision(validOrientation);
-  }, [settings, processPrivacyDecision]);
+  }, [processPrivacyDecision]);
 
   const updateSettings = useCallback((newSettings: Partial<PrivacySettings> | ((prev: PrivacySettings) => Partial<PrivacySettings>)) => {
     setSettings(prev => {

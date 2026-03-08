@@ -75,6 +75,7 @@ export interface PrivacyState {
   multipleFacesDetected: boolean;
   orientation: DeviceOrientation;
   cameraActive: boolean;
+  protectionLevel: number; // 0 = fully visible, 1 = fully protected
 }
 
 export type PrivacyAction =
@@ -85,6 +86,7 @@ export type PrivacyAction =
   | { type: 'SET_MULTIPLE_FACES'; payload: boolean }
   | { type: 'SET_PROTECTED'; payload: boolean }
   | { type: 'SET_CAMERA_ACTIVE'; payload: boolean }
+  | { type: 'SET_PROTECTION_LEVEL'; payload: number }
   | { type: 'UPDATE_STATE'; payload: Partial<PrivacyState> };
 
 export const DEFAULT_CALIBRATION: CalibrationData = {

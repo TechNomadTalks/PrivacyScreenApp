@@ -11,29 +11,42 @@ import {
 import { usePrivacy } from '../context/PrivacyContext';
 
 interface PrivacyOverlayProps {
-  intensity?: number;
+  maxIntensity?: number;
   showPattern?: boolean;
 }
 
 export function PrivacyOverlay({ 
-  intensity: intensityProp = 0.85, 
+  maxIntensity = 0.85, 
   showPattern = false 
 }: PrivacyOverlayProps) {
-  const intensity = Number.isFinite(intensityProp) ? Math.max(0, Math.min(1, intensityProp)) : 0.85;
   const { state, settings } = usePrivacy();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const intensityAnim = useRef(new Animated.Value(0)).current;
 
   const useNativeDriver = Platform.OS !== 'web';
 
   useEffect(() => {
-    const shouldShow = state.isProtected && settings.enabled;
+    const targetIntensity = state.protectionLevel * maxIntensity;
+    const shouldShow = state.protectionLevel > 0.05 && settings.enabled;
     
-    Animated.timing(fadeAnim, {
-      toValue: shouldShow ? 1 : 0,
-      duration: shouldShow ? 200 : 150,
-      useNativeDriver,
-    }).start();
-  }, [state.isProtected, settings.enabled, fadeAnim, useNativeDriver]);
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: shouldShow ? 1 : 0,
+        duration: shouldShow ? 300 : 500,
+        useNativeDriver,
+      }),
+      Animated.timing(intensityAnim, {
+        toValue: targetIntensity,
+        duration: 300,
+        useNativeDriver,
+      }),
+    ]).start();
+  }, [state.protectionLevel, settings.enabled, fadeAnim, intensityAnim, maxIntensity, useNativeDriver]);
+
+  const currentIntensity = intensityAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, maxIntensity],
+  });
 
   return (
     <Animated.View 
@@ -41,11 +54,19 @@ export function PrivacyOverlay({
         styles.container, 
         { 
           opacity: fadeAnim,
-          backgroundColor: `rgba(0, 0, 0, ${intensity})`,
         }
       ]}
       pointerEvents="none"
     >
+      <Animated.View 
+        style={[
+          styles.overlay,
+          {
+            opacity: currentIntensity,
+          }
+        ]}
+        pointerEvents="none"
+      />
       <StatusBar hidden={state.isProtected} />
     </Animated.View>
   );
@@ -56,6 +77,10 @@ const styles = {
     ...StyleSheet.absoluteFillObject,
     zIndex: 9999,
     elevation: 9999,
+  } as const,
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000000',
   } as const,
 };
 
