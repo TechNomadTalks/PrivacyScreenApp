@@ -1,18 +1,37 @@
 /**
  * PrivacyCamera Component - Hidden camera for face detection
- * Only activates when protection is enabled and camera detection is on
+ * Uses expo-camera with expo-face-detector for face analysis
  */
 
 import React, { useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { CameraView } from 'expo-camera';
-import { detectFacesAsync, FaceDetectorMode, FaceDetectorLandmarks, FaceDetectorClassifications, FaceFeature } from 'expo-face-detector';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { detectFacesAsync, FaceDetectorMode, FaceDetectorLandmarks, FaceDetectorClassifications } from 'expo-face-detector';
 import { usePrivacy } from '../context/PrivacyContext';
-import { FaceDetectionResult } from '../types';
 import faceEnrollmentService from '../services/FaceEnrollmentService';
 
 interface PrivacyCameraProps {
   children?: React.ReactNode;
+}
+
+interface FaceData {
+  bounds: {
+    size: { width: number; height: number };
+    origin: { x: number; y: number };
+  };
+  yawAngle?: number;
+  rollAngle?: number;
+  leftEyeOpenProbability?: number;
+  rightEyeOpenProbability?: number;
+  leftEyePosition?: { x: number; y: number };
+  rightEyePosition?: { x: number; y: number };
+  noseBasePosition?: { x: number; y: number };
+  mouthPosition?: { x: number; y: number };
+  leftEarPosition?: { x: number; y: number };
+  rightEarPosition?: { x: number; y: number };
+  leftCheekPosition?: { x: number; y: number };
+  rightCheekPosition?: { x: number; y: number };
+  bottomMouthPosition?: { x: number; y: number };
 }
 
 const faceDetectorOptions = {
@@ -25,33 +44,15 @@ const faceDetectorOptions = {
 
 export function PrivacyCamera({ children }: PrivacyCameraProps) {
   const { settings, updateFaceDetection, setCameraActive } = usePrivacy();
+  const [permission] = useCameraPermissions();
   
   const shouldEnable = settings.enabled && settings.enableCameraDetection;
+  const hasPermission = permission?.granted ?? false;
   const cameraRef = useRef<CameraView>(null);
   const lastProcessTimeRef = useRef<number>(0);
-  const hasPermissionRef = useRef(false);
 
-  const processFace = useCallback(async (face: FaceFeature) => {
-    const multipleFaces = false;
-    const avgEyeOpen = ((face.leftEyeOpenProbability || 0) + (face.rightEyeOpenProbability || 0)) / 2;
-    const eyesClosed = avgEyeOpen < settings.eyeOpenThreshold;
-    
-    let similarity = 1;
-    let isUserFace = true;
-    
-    if (settings.userFaceEnrolled) {
-      const result = await faceEnrollmentService.compareFace(face);
-      similarity = result.similarity;
-      isUserFace = result.isSamePerson;
-      
-      updateFaceDetection(true, multipleFaces, eyesClosed, similarity, isUserFace);
-    } else {
-      updateFaceDetection(true, multipleFaces, eyesClosed, 1, true);
-    }
-  }, [settings.eyeOpenThreshold, settings.userFaceEnrolled, updateFaceDetection]);
-
-  const detectFaces = useCallback(async () => {
-    if (!cameraRef.current || !hasPermissionRef.current) return;
+  const detectAndProcessFaces = useCallback(async () => {
+    if (!cameraRef.current || !hasPermission) return;
     
     try {
       const photo = await cameraRef.current.takePictureAsync({
@@ -62,23 +63,42 @@ export function PrivacyCamera({ children }: PrivacyCameraProps) {
       if (photo?.uri) {
         const result = await detectFacesAsync(photo.uri, faceDetectorOptions);
         const now = Date.now();
-        if (now - lastProcessTimeRef.current < 300) {
+        if (now - lastProcessTimeRef.current < 500) {
           return;
         }
         lastProcessTimeRef.current = now;
         
-        if (result.faces.length === 0) {
+        const faces = result.faces as FaceData[];
+        
+        if (faces.length === 0) {
           updateFaceDetection(false, false, false, 0, false);
-        } else if (result.faces.length > 1) {
-          updateFaceDetection(true, true, false, 0, false);
-        } else {
-          await processFace(result.faces[0]);
+          return;
         }
+
+        if (faces.length > 1) {
+          updateFaceDetection(true, true, false, 0, false);
+          return;
+        }
+
+        const face = faces[0];
+        const avgEyeOpen = ((face.leftEyeOpenProbability || 0) + (face.rightEyeOpenProbability || 0)) / 2;
+        const eyesClosed = avgEyeOpen < settings.eyeOpenThreshold;
+        
+        let similarity = 1;
+        let isUserFace = true;
+        
+        if (settings.userFaceEnrolled) {
+          const compareResult = await faceEnrollmentService.compareFace(face as any);
+          similarity = compareResult.similarity;
+          isUserFace = compareResult.isSamePerson;
+        }
+        
+        updateFaceDetection(true, false, eyesClosed, similarity, isUserFace);
       }
     } catch (error) {
       console.log('Face detection error:', error);
     }
-  }, [processFace, updateFaceDetection]);
+  }, [hasPermission, settings.eyeOpenThreshold, settings.userFaceEnrolled, updateFaceDetection]);
 
   useEffect(() => {
     faceEnrollmentService.loadTemplate().then(template => {
@@ -89,28 +109,21 @@ export function PrivacyCamera({ children }: PrivacyCameraProps) {
   }, []);
 
   useEffect(() => {
-    if (shouldEnable) {
+    if (shouldEnable && hasPermission) {
       setCameraActive(true);
       
       const interval = setInterval(() => {
-        detectFaces();
-      }, 500);
+        detectAndProcessFaces();
+      }, 1000);
       
       return () => clearInterval(interval);
     } else {
       setCameraActive(false);
       updateFaceDetection(false, false, false, 0, true);
     }
-  }, [shouldEnable, detectFaces, setCameraActive, updateFaceDetection]);
+  }, [shouldEnable, hasPermission, detectAndProcessFaces, setCameraActive, updateFaceDetection]);
 
-  const handleCameraReady = useCallback(() => {
-    hasPermissionRef.current = true;
-    if (shouldEnable) {
-      detectFaces();
-    }
-  }, [shouldEnable, detectFaces]);
-
-  if (!shouldEnable) {
+  if (!shouldEnable || !hasPermission) {
     return <>{children}</>;
   }
 
@@ -120,7 +133,6 @@ export function PrivacyCamera({ children }: PrivacyCameraProps) {
         ref={cameraRef}
         style={styles.camera}
         facing="front"
-        onCameraReady={handleCameraReady}
       >
         {children}
       </CameraView>

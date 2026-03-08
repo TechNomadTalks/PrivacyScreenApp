@@ -19,13 +19,41 @@ import {
   Alert,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { detectFacesAsync, FaceDetectorMode, FaceDetectorLandmarks, FaceDetectorClassifications, FaceFeature } from 'expo-face-detector';
+import { detectFacesAsync, FaceDetectorMode, FaceDetectorLandmarks, FaceDetectorClassifications } from 'expo-face-detector';
 import faceEnrollmentService from '../services/FaceEnrollmentService';
 
 interface FaceEnrollmentScreenProps {
   onComplete: () => void;
   onCancel: () => void;
 }
+
+interface FaceData {
+  bounds: {
+    size: { width: number; height: number };
+    origin: { x: number; y: number };
+  };
+  yawAngle?: number;
+  rollAngle?: number;
+  leftEyeOpenProbability?: number;
+  rightEyeOpenProbability?: number;
+  leftEyePosition?: { x: number; y: number };
+  rightEyePosition?: { x: number; y: number };
+  noseBasePosition?: { x: number; y: number };
+  mouthPosition?: { x: number; y: number };
+  leftEarPosition?: { x: number; y: number };
+  rightEarPosition?: { x: number; y: number };
+  leftCheekPosition?: { x: number; y: number };
+  rightCheekPosition?: { x: number; y: number };
+  bottomMouthPosition?: { x: number; y: number };
+}
+
+const faceDetectorOptions = {
+  mode: FaceDetectorMode.fast,
+  detectLandmarks: FaceDetectorLandmarks.all,
+  runClassifications: FaceDetectorClassifications.all,
+  minDetectionInterval: 100,
+  tracking: true,
+};
 
 const COLORS = {
   bg: '#000000',
@@ -38,32 +66,70 @@ const COLORS = {
   green: '#4CAF50',
 };
 
-const faceDetectorOptions = {
-  mode: FaceDetectorMode.fast,
-  detectLandmarks: FaceDetectorLandmarks.all,
-  runClassifications: FaceDetectorClassifications.all,
-  minDetectionInterval: 100,
-  tracking: true,
-};
-
 export function FaceEnrollmentScreen({ onComplete, onCancel }: FaceEnrollmentScreenProps) {
   const [permission, requestPermission] = useCameraPermissions();
   const [isEnrolling, setIsEnrolling] = useState(false);
-  const [captureProgress, setCaptureProgress] = useState(0);
   const [enrollmentComplete, setEnrollmentComplete] = useState(false);
+  const [faceDetected, setFaceDetected] = useState(false);
   const [instruction, setInstruction] = useState('Position your face in the frame');
   
   const cameraRef = useRef<CameraView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const progressAnim = useRef(new Animated.Value(0)).current;
+  const currentFaceRef = useRef<FaceData | null>(null);
+  const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const hasPermission = permission?.granted ?? false;
+
+  const checkForFace = useCallback(async () => {
+    if (!cameraRef.current || !hasPermission) return;
+    
+    try {
+      const photo = await cameraRef.current.takePictureAsync({
+        skipProcessing: true,
+        base64: false,
+      });
+      
+      if (photo?.uri) {
+        const result = await detectFacesAsync(photo.uri, faceDetectorOptions);
+        
+        if (result.faces.length === 1) {
+          setFaceDetected(true);
+          currentFaceRef.current = result.faces[0] as FaceData;
+          if (!isEnrolling) {
+            setInstruction('Face detected - Tap Enroll to continue');
+          }
+        } else if (result.faces.length > 1) {
+          setFaceDetected(false);
+          setInstruction('Multiple faces - Please show only one face');
+          currentFaceRef.current = null;
+        } else {
+          setFaceDetected(false);
+          setInstruction('Position your face in the frame');
+          currentFaceRef.current = null;
+        }
+      }
+    } catch (error) {
+      console.log('Face detection error:', error);
+    }
+  }, [hasPermission, isEnrolling]);
 
   useEffect(() => {
     if (!hasPermission) {
       requestPermission();
     }
   }, [hasPermission, requestPermission]);
+
+  useEffect(() => {
+    if (hasPermission && !enrollmentComplete) {
+      detectionIntervalRef.current = setInterval(checkForFace, 500);
+    }
+    
+    return () => {
+      if (detectionIntervalRef.current) {
+        clearInterval(detectionIntervalRef.current);
+      }
+    };
+  }, [hasPermission, enrollmentComplete, checkForFace]);
 
   useEffect(() => {
     if (isEnrolling) {
@@ -83,76 +149,44 @@ export function FaceEnrollmentScreen({ onComplete, onCancel }: FaceEnrollmentScr
           }),
         ])
       ).start();
-
-      Animated.timing(progressAnim, {
-        toValue: 1,
-        duration: 3000,
-        easing: Easing.linear,
-        useNativeDriver: false,
-      }).start();
     } else {
       pulseAnim.setValue(1);
-      progressAnim.setValue(0);
     }
-  }, [isEnrolling, pulseAnim, progressAnim]);
-
-  const captureFace = useCallback(async (): Promise<FaceFeature | null> => {
-    if (!cameraRef.current) return null;
-
-    try {
-      const photo = await cameraRef.current.takePictureAsync({
-        skipProcessing: true,
-        base64: false,
-      });
-
-      if (photo?.uri) {
-        const result = await detectFacesAsync(photo.uri, faceDetectorOptions);
-        
-        if (result.faces.length === 1) {
-          return result.faces[0];
-        }
-      }
-    } catch (error) {
-      console.log('Capture error:', error);
-    }
-    return null;
-  }, []);
+  }, [isEnrolling, pulseAnim]);
 
   const startEnrollment = useCallback(async () => {
+    if (!currentFaceRef.current) {
+      setInstruction('No face detected. Please position your face.');
+      return;
+    }
+
     setIsEnrolling(true);
-    setCaptureProgress(0);
-    setInstruction('Hold steady...');
+    setInstruction('Capturing face...');
 
-    const captureCount = 3;
-    let success = false;
-
-    for (let i = 0; i < captureCount; i++) {
-      setCaptureProgress((i + 1) / captureCount);
-      setInstruction(`Capturing ${i + 1}/${captureCount}...`);
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const face = await captureFace();
+    setTimeout(async () => {
+      const face = currentFaceRef.current;
       if (face) {
-        const enrolled = await faceEnrollmentService.enrollFace(face);
-        if (enrolled) {
-          success = true;
-          break;
+        const success = await faceEnrollmentService.enrollFace(face as any);
+        
+        if (success) {
+          setEnrollmentComplete(true);
+          setInstruction('Face enrolled successfully!');
+          if (detectionIntervalRef.current) {
+            clearInterval(detectionIntervalRef.current);
+          }
+          setTimeout(() => {
+            onComplete();
+          }, 1500);
+        } else {
+          setInstruction('Enrollment failed. Please try again.');
+          setIsEnrolling(false);
         }
+      } else {
+        setInstruction('No face detected. Please try again.');
+        setIsEnrolling(false);
       }
-    }
-
-    if (success) {
-      setEnrollmentComplete(true);
-      setInstruction('Face enrolled successfully!');
-      setTimeout(() => {
-        onComplete();
-      }, 1500);
-    } else {
-      setInstruction('Enrollment failed. Please try again.');
-      setIsEnrolling(false);
-    }
-  }, [captureFace, onComplete]);
+    }, 1500);
+  }, [onComplete]);
 
   const clearEnrollment = useCallback(() => {
     Alert.alert(
@@ -209,8 +243,8 @@ export function FaceEnrollmentScreen({ onComplete, onCancel }: FaceEnrollmentScr
             <Animated.View style={[
               styles.faceFrame,
               { 
-                borderColor: COLORS.red,
-                opacity: pulseAnim,
+                borderColor: faceDetected ? COLORS.green : COLORS.red,
+                opacity: isEnrolling ? pulseAnim : 1,
               }
             ]}>
               <Text style={styles.frameIcon}>☺</Text>
@@ -219,27 +253,14 @@ export function FaceEnrollmentScreen({ onComplete, onCancel }: FaceEnrollmentScr
 
           <View style={styles.instructionContainer}>
             <Text style={styles.instruction}>{instruction}</Text>
-            
-            {isEnrolling && (
-              <View style={styles.progressContainer}>
-                <Animated.View style={[
-                  styles.progressBar,
-                  {
-                    width: progressAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ['0%', '100%'],
-                    }),
-                  }
-                ]} />
-              </View>
-            )}
           </View>
 
           <View style={styles.buttonContainer}>
             {!isEnrolling && !enrollmentComplete && (
               <TouchableOpacity 
-                style={styles.button}
+                style={[styles.button, !faceDetected && styles.buttonDisabled]}
                 onPress={startEnrollment}
+                disabled={!faceDetected}
               >
                 <Text style={styles.buttonText}>ENROLL MY FACE</Text>
               </TouchableOpacity>
@@ -352,17 +373,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 15,
   },
-  progressContainer: {
-    width: '80%',
-    height: 4,
-    backgroundColor: COLORS.surface,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: COLORS.green,
-  },
   buttonContainer: {
     alignItems: 'center',
     marginBottom: 20,
@@ -373,6 +383,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 48,
     borderRadius: 12,
     marginBottom: 15,
+  },
+  buttonDisabled: {
+    backgroundColor: COLORS.redDim,
   },
   buttonText: {
     color: COLORS.text,
