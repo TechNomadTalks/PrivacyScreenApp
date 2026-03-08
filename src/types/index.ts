@@ -38,7 +38,8 @@ export interface PrivacySettings {
   useCamera: boolean;        // Use camera + orientation (true) or orientation only (false)
   filterIntensity: number;   // 0-1, overlay opacity
   enablePattern: boolean;    // Show diagonal pattern overlay
-  hysteresisDelay: number;   // Delay before enabling filter (ms)
+  hysteresisDelay: number;   // Delay before enabling filter (ms) - for enable
+  hysteresisDisableDelay: number; // Delay before disabling filter (ms) - for disable
   yawThreshold: number;
   pitchThresholdMin: number;
   pitchThresholdMax: number;
@@ -46,6 +47,7 @@ export interface PrivacySettings {
   pitchThresholdViewingMin: number;
   pitchThresholdViewingMax: number;
   eyeOpenThreshold: number;
+  persistSettings: boolean;  // Whether to persist settings to storage
 }
 
 export interface PrivacyState {
@@ -74,6 +76,7 @@ export const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
   filterIntensity: 0.85,
   enablePattern: true,
   hysteresisDelay: 500,
+  hysteresisDisableDelay: 150,
   yawThreshold: 15,
   pitchThresholdMin: -20,
   pitchThresholdMax: 20,
@@ -81,6 +84,7 @@ export const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
   pitchThresholdViewingMin: -30,
   pitchThresholdViewingMax: 30,
   eyeOpenThreshold: 0.5,
+  persistSettings: false,
 };
 
 export const DEFAULT_ORIENTATION_THRESHOLDS: PrivacyThresholds = {

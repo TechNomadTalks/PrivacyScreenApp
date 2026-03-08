@@ -28,11 +28,23 @@ export function Settings({ onRequestPermission }: SettingsProps) {
     updateSettings((prev: any) => ({ enablePattern: !prev.enablePattern }));
   };
 
+  const handleTogglePersist = () => {
+    updateSettings((prev: any) => ({ persistSettings: !prev.persistSettings }));
+  };
+
   const handleIntensityChange = (increase: boolean) => {
     updateSettings((prev: any) => ({ 
       filterIntensity: increase 
         ? Math.min(1, prev.filterIntensity + 0.1)
         : Math.max(0.5, prev.filterIntensity - 0.1)
+    }));
+  };
+
+  const handleHysteresisChange = (increase: boolean) => {
+    updateSettings((prev: any) => ({ 
+      hysteresisDelay: increase 
+        ? Math.min(2000, prev.hysteresisDelay + 100)
+        : Math.max(100, prev.hysteresisDelay - 100)
     }));
   };
 
@@ -103,6 +115,22 @@ export function Settings({ onRequestPermission }: SettingsProps) {
 
         <View style={styles.row}>
           <View style={styles.rowContent}>
+            <Text style={styles.label}>Persist Settings</Text>
+            <Text style={styles.description}>
+              Save settings between sessions
+            </Text>
+          </View>
+          <Switch
+            value={settings.persistSettings}
+            onValueChange={handleTogglePersist}
+            trackColor={{ false: "#767577", true: "#81C784" }}
+            thumbColor={settings.persistSettings ? "#4CAF50" : "#f4f3f4"}
+            disabled={!settings.enabled}
+          />
+        </View>
+
+        <View style={styles.row}>
+          <View style={styles.rowContent}>
             <Text style={styles.label}>Filter Intensity</Text>
             <Text style={styles.description}>
               {(settings.filterIntensity * 100).toFixed(0)}% opacity
@@ -120,6 +148,31 @@ export function Settings({ onRequestPermission }: SettingsProps) {
               style={styles.intensityButton}
               onPress={() => handleIntensityChange(true)}
               disabled={!settings.enabled || settings.filterIntensity >= 1}
+            >
+              <Text style={styles.intensityButtonText}>+</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.row}>
+          <View style={styles.rowContent}>
+            <Text style={styles.label}>Response Delay</Text>
+            <Text style={styles.description}>
+              {settings.hysteresisDelay}ms before filter activates
+            </Text>
+          </View>
+          <View style={styles.intensityButtons}>
+            <TouchableOpacity 
+              style={styles.intensityButton}
+              onPress={() => handleHysteresisChange(false)}
+              disabled={!settings.enabled || settings.hysteresisDelay <= 100}
+            >
+              <Text style={styles.intensityButtonText}>-</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.intensityButton}
+              onPress={() => handleHysteresisChange(true)}
+              disabled={!settings.enabled || settings.hysteresisDelay >= 2000}
             >
               <Text style={styles.intensityButtonText}>+</Text>
             </TouchableOpacity>
