@@ -80,44 +80,57 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 }
 
+const COLORS = {
+  bg: '#000000',
+  surface: '#0D0D0D',
+  red: '#E53935',
+  text: '#FFFFFF',
+  textMuted: '#666666',
+  border: '#1F1F1F',
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: COLORS.bg,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   content: {
-    backgroundColor: '#1E1E1E',
+    backgroundColor: COLORS.surface,
     borderRadius: 12,
-    padding: 24,
+    padding: 32,
     alignItems: 'center',
     maxWidth: 320,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FF5252',
-    marginBottom: 12,
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.red,
+    marginBottom: 8,
+    letterSpacing: 2,
   },
   message: {
-    fontSize: 14,
-    color: '#9E9E9E',
+    fontSize: 12,
+    color: COLORS.textMuted,
     textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 20,
+    marginBottom: 24,
+    lineHeight: 18,
   },
   button: {
-    backgroundColor: '#00BCD4',
-    paddingHorizontal: 24,
+    backgroundColor: COLORS.red,
+    paddingHorizontal: 32,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 6,
   },
   buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    color: COLORS.text,
+    fontSize: 12,
     fontWeight: '600',
+    letterSpacing: 1,
   },
 });
 
