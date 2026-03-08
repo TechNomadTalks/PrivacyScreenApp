@@ -10,6 +10,7 @@ import {
   Switch,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from "react-native";
 import { usePrivacy } from "../context/PrivacyContext";
 import { PrivacySettings } from "../types";
@@ -77,11 +78,15 @@ export function Settings({ onRequestPermission }: SettingsProps) {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>PRIVACY</Text>
-          <Text style={styles.subtitle}>Screen Protection</Text>
+          <Text style={styles.title}>DIY PRIVACY</Text>
         </View>
-        <View style={[styles.statusDot, { backgroundColor: getStatusColor() }]}>
-          <Text style={styles.statusText}>{getStatusText()}</Text>
+        <View style={styles.logoContainer}>
+          <Image 
+            source={require('../../assets/logo.jpeg')} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.logoText}>TechNomadTalks</Text>
         </View>
       </View>
 
@@ -107,6 +112,10 @@ export function Settings({ onRequestPermission }: SettingsProps) {
           {settings.enabled && <View style={styles.toggleDot} />}
         </View>
       </TouchableOpacity>
+
+      <View style={[styles.statusBadge, { backgroundColor: getStatusColor() }]}>
+        <Text style={styles.statusBadgeText}>{getStatusText()}</Text>
+      </View>
 
       {settings.enabled && (
         <>
@@ -258,29 +267,37 @@ const styles = StyleSheet.create({
     paddingTop: 32,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
-    color: COLORS.text,
+    color: '#FFFFFF',
     letterSpacing: 4,
   },
-  subtitle: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginTop: 4,
-    letterSpacing: 2,
+  logoContainer: {
+    alignItems: 'center',
   },
-  statusDot: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+  logo: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
   },
-  statusText: {
-    color: COLORS.textMuted,
-    fontSize: 10,
-    fontWeight: '600',
+  logoText: {
+    fontSize: 8,
+    color: '#888888',
+    marginTop: 2,
     letterSpacing: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 4,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  statusBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 2,
   },
   mainToggle: {
     flexDirection: 'row',
