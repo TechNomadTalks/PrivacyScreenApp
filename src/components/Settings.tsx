@@ -246,19 +246,31 @@ export function Settings({ onRequestPermission }: SettingsProps) {
           style={styles.socialButton}
           onPress={() => openLink(SOCIAL_LINKS.github)}
         >
-          <Text style={styles.socialIcon}>𝕏</Text>
+          <Image 
+            source={require('../../assets/icon-github.png')}
+            style={styles.socialIcon}
+            resizeMode="contain"
+          />
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.socialButton}
           onPress={() => openLink(SOCIAL_LINKS.linkedin)}
         >
-          <Text style={styles.socialIcon}>in</Text>
+          <Image 
+            source={require('../../assets/icon-linkedin.png')}
+            style={styles.socialIcon}
+            resizeMode="contain"
+          />
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.socialButton}
           onPress={() => openLink(SOCIAL_LINKS.tiktok)}
         >
-          <Text style={styles.socialIcon}>♪</Text>
+          <Image 
+            source={require('../../assets/icon-tiktok.png')}
+            style={styles.socialIcon}
+            resizeMode="contain"
+          />
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -503,7 +515,8 @@ const styles = StyleSheet.create({
   socialContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 20,
+    gap: 16,
+    marginTop: 10,
   },
   socialButton: {
     width: 44,
@@ -514,11 +527,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
+    overflow: 'hidden',
   },
   socialIcon: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    width: 24,
+    height: 24,
   },
 });
 
