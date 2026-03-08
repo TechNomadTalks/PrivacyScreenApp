@@ -125,7 +125,6 @@ export function PrivacyProvider({ children, onPrivacyChange }: PrivacyProviderPr
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
-        console.log('[PrivacyContext] App came to foreground, resetting sensor service');
         sensorService.reset();
       }
     };
