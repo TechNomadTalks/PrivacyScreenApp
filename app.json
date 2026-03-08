@@ -14,7 +14,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSMotionUsageDescription": "DIY Privacy uses motion sensors to detect device orientation."
+        "NSMotionUsageDescription": "DIY Privacy uses motion sensors to detect device orientation.",
+        "NSCameraUsageDescription": "DIY Privacy uses the camera to detect if someone else is looking at your screen."
       }
     },
     "android": {
@@ -24,7 +25,8 @@
       },
       "package": "com.diyprivacy.app",
       "permissions": [
-        "HIGH_SAMPLING_RATE_SENSORS"
+        "HIGH_SAMPLING_RATE_SENSORS",
+        "CAMERA"
       ]
     },
     "web": {
@@ -35,6 +37,12 @@
         "expo-sensors",
         {
           "motionPermission": "DIY Privacy uses motion sensors to detect device orientation."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "DIY Privacy uses the camera to detect if someone else is looking at your screen."
         }
       ]
     ]

@@ -65,6 +65,9 @@ export interface PrivacySettings {
   eyeOpenThreshold: number;
   persistSettings: boolean;
   calibration: CalibrationData;
+  enableCameraDetection: boolean;
+  userFaceEnrolled: boolean;
+  faceSimilarityThreshold: number;
 }
 
 export interface PrivacyState {
@@ -75,7 +78,9 @@ export interface PrivacyState {
   multipleFacesDetected: boolean;
   orientation: DeviceOrientation;
   cameraActive: boolean;
-  protectionLevel: number; // 0 = fully visible, 1 = fully protected
+  protectionLevel: number;
+  faceSimilarity: number;
+  isUserFace: boolean;
 }
 
 export type PrivacyAction =
@@ -87,6 +92,8 @@ export type PrivacyAction =
   | { type: 'SET_PROTECTED'; payload: boolean }
   | { type: 'SET_CAMERA_ACTIVE'; payload: boolean }
   | { type: 'SET_PROTECTION_LEVEL'; payload: number }
+  | { type: 'SET_FACE_SIMILARITY'; payload: number }
+  | { type: 'SET_IS_USER_FACE'; payload: boolean }
   | { type: 'UPDATE_STATE'; payload: Partial<PrivacyState> };
 
 export const DEFAULT_CALIBRATION: CalibrationData = {
@@ -110,4 +117,7 @@ export const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
   eyeOpenThreshold: 0.5,
   persistSettings: false,
   calibration: DEFAULT_CALIBRATION,
+  enableCameraDetection: false,
+  userFaceEnrolled: false,
+  faceSimilarityThreshold: 0.65,
 };

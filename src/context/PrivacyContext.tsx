@@ -19,6 +19,8 @@ interface PrivacyContextType {
   state: PrivacyState;
   settings: PrivacySettings;
   updateOrientation: (orientation: DeviceOrientation) => void;
+  updateFaceDetection: (faceDetected: boolean, multipleFaces: boolean, eyesClosed: boolean, similarity?: number, isUserFace?: boolean) => void;
+  setCameraActive: (active: boolean) => void;
   updateSettings: (settings: Partial<PrivacySettings> | ((prev: PrivacySettings) => Partial<PrivacySettings>)) => void;
   togglePrivacy: () => void;
   isLoading: boolean;
@@ -34,6 +36,8 @@ const initialState: PrivacyState = {
   orientation: { pitch: 0, roll: 0, yaw: 0 },
   cameraActive: false,
   protectionLevel: 0,
+  faceSimilarity: 0,
+  isUserFace: true,
 };
 
 function privacyReducer(state: PrivacyState, action: PrivacyAction): PrivacyState {
@@ -46,6 +50,18 @@ function privacyReducer(state: PrivacyState, action: PrivacyAction): PrivacyStat
       return { ...state, isProtected: action.payload };
     case "SET_PROTECTION_LEVEL":
       return { ...state, protectionLevel: action.payload };
+    case "SET_FACE_DETECTED":
+      return { ...state, faceDetected: action.payload };
+    case "SET_MULTIPLE_FACES":
+      return { ...state, multipleFacesDetected: action.payload };
+    case "SET_CAMERA_ACTIVE":
+      return { ...state, cameraActive: action.payload };
+    case "SET_FACE_SIMILARITY":
+      return { ...state, faceSimilarity: action.payload };
+    case "SET_IS_USER_FACE":
+      return { ...state, isUserFace: action.payload };
+    case "UPDATE_STATE":
+      return { ...state, ...action.payload };
     default:
       return state;
   }
@@ -87,6 +103,13 @@ export function PrivacyProvider({ children }: PrivacyProviderProps) {
   const lastPrivacyDisableTime = useRef<number>(0);
   const orientationHistoryRef = useRef<DeviceOrientation[]>([]);
   const protectionLevelRef = useRef(0);
+  
+  const faceDetectedRef = useRef(false);
+  const multipleFacesRef = useRef(false);
+  const eyesClosedRef = useRef(false);
+  const cameraActiveRef = useRef(false);
+  const isUserFaceRef = useRef(true);
+  const faceSimilarityRef = useRef(0);
   
   const sensorService = useMemo(() => createSensorService(), []);
   
@@ -146,19 +169,33 @@ export function PrivacyProvider({ children }: PrivacyProviderProps) {
     }
 
     const maxDistance = 1;
-    let protectionLevel = 0;
+    let orientationProtectionLevel = 0;
     if (profiles.length > 0) {
       if (minDistance <= 0) {
-        protectionLevel = 0;
+        orientationProtectionLevel = 0;
       } else {
-        protectionLevel = Math.min(1, minDistance);
+        orientationProtectionLevel = Math.min(1, minDistance);
       }
     }
 
-    protectionLevelRef.current = protectionLevel;
-    dispatch({ type: "SET_PROTECTION_LEVEL", payload: protectionLevel });
+    let cameraProtectionLevel = 0;
+    if (settings.enableCameraDetection) {
+      const noFaceDetected = !faceDetectedRef.current;
+      const multipleFaces = multipleFacesRef.current;
+      const notUserFace = !isUserFaceRef.current;
+      
+      if (noFaceDetected || multipleFaces || notUserFace) {
+        cameraProtectionLevel = 1;
+      } else if (eyesClosedRef.current) {
+        cameraProtectionLevel = 0.5;
+      }
+    }
 
-    const shouldBeProtected = protectionLevel > 0.1;
+    const combinedProtectionLevel = Math.max(orientationProtectionLevel, cameraProtectionLevel);
+    protectionLevelRef.current = combinedProtectionLevel;
+    dispatch({ type: "SET_PROTECTION_LEVEL", payload: combinedProtectionLevel });
+
+    const shouldBeProtected = combinedProtectionLevel > 0.1;
 
     const now = Date.now();
     const hysteresisEnableDelay = settings.hysteresisDelay;
@@ -195,6 +232,39 @@ export function PrivacyProvider({ children }: PrivacyProviderProps) {
     processPrivacyDecision(validOrientation);
   }, [processPrivacyDecision]);
 
+  const updateFaceDetection = useCallback((
+    faceDetected: boolean,
+    multipleFaces: boolean,
+    eyesClosed: boolean,
+    similarity?: number,
+    isUserFace?: boolean
+  ) => {
+    faceDetectedRef.current = faceDetected;
+    multipleFacesRef.current = multipleFaces;
+    eyesClosedRef.current = eyesClosed;
+    
+    if (similarity !== undefined) {
+      faceSimilarityRef.current = similarity;
+      dispatch({ type: "SET_FACE_SIMILARITY", payload: similarity });
+    }
+    
+    if (isUserFace !== undefined) {
+      isUserFaceRef.current = isUserFace;
+      dispatch({ type: "SET_IS_USER_FACE", payload: isUserFace });
+    }
+    
+    dispatch({ type: "SET_FACE_DETECTED", payload: faceDetected });
+    dispatch({ type: "SET_MULTIPLE_FACES", payload: multipleFaces });
+    
+    const currentOrientation = state.orientation;
+    processPrivacyDecision(currentOrientation);
+  }, [state.orientation, processPrivacyDecision]);
+
+  const setCameraActive = useCallback((active: boolean) => {
+    cameraActiveRef.current = active;
+    dispatch({ type: "SET_CAMERA_ACTIVE", payload: active });
+  }, []);
+
   const updateSettings = useCallback((newSettings: Partial<PrivacySettings> | ((prev: PrivacySettings) => Partial<PrivacySettings>)) => {
     setSettings(prev => {
       const updates = typeof newSettings === 'function' ? newSettings(prev) : newSettings;
@@ -210,11 +280,13 @@ export function PrivacyProvider({ children }: PrivacyProviderProps) {
     state,
     settings,
     updateOrientation,
+    updateFaceDetection,
+    setCameraActive,
     updateSettings,
     togglePrivacy,
     isLoading,
     isCalibrated: settings.calibration.isCalibrated,
-  }), [state, settings, updateOrientation, updateSettings, togglePrivacy, isLoading]);
+  }), [state, settings, updateOrientation, updateFaceDetection, setCameraActive, updateSettings, togglePrivacy, isLoading]);
 
   return (
     <PrivacyContext.Provider value={value}>

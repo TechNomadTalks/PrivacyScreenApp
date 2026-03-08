@@ -12,9 +12,11 @@ import {
   TouchableOpacity,
   Image,
   Linking,
+  Modal,
 } from "react-native";
 import { usePrivacy } from "../context/PrivacyContext";
 import { PrivacySettings } from "../types";
+import FaceEnrollmentScreen from "./FaceEnrollmentScreen";
 
 interface SettingsProps {
   onRequestPermission?: () => void;
@@ -39,6 +41,7 @@ const SOCIAL_LINKS = {
 
 export function Settings({ onRequestPermission }: SettingsProps) {
   const { settings, updateSettings, state } = usePrivacy();
+  const [showFaceEnrollment, setShowFaceEnrollment] = React.useState(false);
 
   const handleToggleEnabled = () => {
     updateSettings((prev: PrivacySettings) => ({ enabled: !prev.enabled }));
@@ -46,6 +49,22 @@ export function Settings({ onRequestPermission }: SettingsProps) {
 
   const handleTogglePattern = () => {
     updateSettings((prev: PrivacySettings) => ({ enablePattern: !prev.enablePattern }));
+  };
+
+  const handleToggleCameraDetection = () => {
+    updateSettings((prev: PrivacySettings) => ({ enableCameraDetection: !prev.enableCameraDetection }));
+  };
+
+  const handleFaceEnrollmentComplete = () => {
+    updateSettings((prev: PrivacySettings) => ({ 
+      userFaceEnrolled: true,
+      enableCameraDetection: true,
+    }));
+    setShowFaceEnrollment(false);
+  };
+
+  const handleFaceEnrollmentCancel = () => {
+    setShowFaceEnrollment(false);
   };
 
   const handleTogglePersist = () => {
@@ -85,7 +104,8 @@ export function Settings({ onRequestPermission }: SettingsProps) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>DIY PRIVACY</Text>
@@ -150,6 +170,28 @@ export function Settings({ onRequestPermission }: SettingsProps) {
               <Text style={styles.sensorLabel}>Roll</Text>
               <Text style={styles.sensorValue}>{state.orientation.roll.toFixed(1)}°</Text>
             </View>
+            {settings.enableCameraDetection && (
+              <>
+                <View style={[styles.statusRow, { marginTop: 12 }]}>
+                  <Text style={styles.statusLabelBold}>FACE DETECTION</Text>
+                  <Text style={styles.statusValue}>
+                    {state.cameraActive ? 'ACTIVE' : 'INACTIVE'}
+                  </Text>
+                </View>
+                <View style={styles.statusBar}>
+                  <View style={[
+                    styles.statusBarFill, 
+                    { width: state.cameraActive ? '100%' : '0%' }
+                  ]} />
+                </View>
+                <View style={styles.sensorRow}>
+                  <Text style={styles.sensorLabel}>Face</Text>
+                  <Text style={styles.sensorValue}>
+                    {state.multipleFacesDetected ? 'MULTIPLE' : state.faceDetected ? 'DETECTED' : 'NONE'}
+                  </Text>
+                </View>
+              </>
+            )}
           </View>
 
           <View style={styles.section}>
@@ -166,6 +208,35 @@ export function Settings({ onRequestPermission }: SettingsProps) {
                 thumbColor={settings.enablePattern ? '#FFFFFF' : COLORS.textMuted}
               />
             </View>
+
+            <View style={styles.row}>
+              <View style={styles.rowContent}>
+                <Text style={styles.labelBold}>Face Detection</Text>
+              </View>
+              <Switch
+                value={settings.enableCameraDetection}
+                onValueChange={handleToggleCameraDetection}
+                trackColor={{ false: COLORS.surfaceHover, true: COLORS.red }}
+                thumbColor={settings.enableCameraDetection ? '#FFFFFF' : COLORS.textMuted}
+              />
+            </View>
+
+            <TouchableOpacity 
+              style={styles.row}
+              onPress={() => setShowFaceEnrollment(true)}
+            >
+              <View style={styles.rowContent}>
+                <Text style={styles.labelBold}>
+                  {settings.userFaceEnrolled ? 'My Face Enrolled' : 'Enroll My Face'}
+                </Text>
+                <Text style={styles.labelMuted}>
+                  {settings.userFaceEnrolled 
+                    ? 'Tap to re-enroll your face' 
+                    : 'Identify yourself vs others'}
+                </Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
 
             <View style={styles.row}>
               <View style={styles.rowContent}>
@@ -253,8 +324,16 @@ export function Settings({ onRequestPermission }: SettingsProps) {
       )}
 
       <View style={styles.footer}>
-        <Text style={styles.footerTextBold}>NO CAMERA • NO INTERNET</Text>
-        <Text style={styles.footerText}>Uses device sensors only</Text>
+        {settings.userFaceEnrolled ? (
+          <Text style={styles.footerTextBold}>FACE ENROLLED • LOCAL ONLY</Text>
+        ) : (
+          <Text style={styles.footerTextBold}>NO CAMERA • NO INTERNET</Text>
+        )}
+        <Text style={styles.footerText}>
+          {settings.userFaceEnrolled 
+            ? 'Your face template stored locally' 
+            : 'Uses device sensors only'}
+        </Text>
       </View>
 
       <View style={styles.socialContainer}>
@@ -290,6 +369,18 @@ export function Settings({ onRequestPermission }: SettingsProps) {
         </TouchableOpacity>
       </View>
     </ScrollView>
+
+    <Modal
+      visible={showFaceEnrollment}
+      animationType="slide"
+      presentationStyle="fullScreen"
+    >
+      <FaceEnrollmentScreen
+        onComplete={handleFaceEnrollmentComplete}
+        onCancel={handleFaceEnrollmentCancel}
+      />
+    </Modal>
+    </>
   );
 }
 
@@ -471,6 +562,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  labelMuted: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  chevron: {
+    fontSize: 20,
+    color: COLORS.textMuted,
+    fontWeight: '300',
   },
   sliderContainer: {
     flexDirection: 'row',

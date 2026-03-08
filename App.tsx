@@ -6,6 +6,7 @@ import { PrivacyOverlay } from "./src/components/PrivacyOverlay";
 import Settings from "./src/components/Settings";
 import CalibrationScreen from "./src/components/CalibrationScreen";
 import { useSensors } from "./src/hooks/useSensors";
+import { PrivacyCamera } from "./src/components/PrivacyCamera";
 import { DeviceOrientation } from "./src/types";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 
@@ -46,13 +47,15 @@ function MainApp() {
 
   return (
     <View style={styles.container}>
-      <PrivacyOverlay 
-        maxIntensity={settings.filterIntensity} 
-        showPattern={settings.enablePattern} 
-      />
-      <View style={styles.content}>
-        <Settings onRequestPermission={() => {}} />
-      </View>
+      <PrivacyCamera>
+        <PrivacyOverlay 
+          maxIntensity={settings.filterIntensity} 
+          showPattern={settings.enablePattern} 
+        />
+        <View style={styles.content}>
+          <Settings onRequestPermission={() => {}} />
+        </View>
+      </PrivacyCamera>
       <StatusBar hidden={state.isProtected} barStyle="light-content" />
     </View>
   );
