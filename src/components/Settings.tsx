@@ -187,51 +187,67 @@ export function Settings({ onRequestPermission }: SettingsProps) {
               <Text style={styles.sliderLabelBold}>OPACITY</Text>
               <Text style={styles.sliderValue}>{(settings.filterIntensity * 100).toFixed(0)}%</Text>
             </View>
-            <TouchableOpacity 
-              style={styles.sliderTrack}
-              activeOpacity={0.8}
-              onPress={(e) => {
-                const { locationX } = e.nativeEvent;
-                const newValue = locationX / 300;
-                updateSettings((prev: PrivacySettings) => ({ 
-                  filterIntensity: Math.max(0.5, Math.min(1, newValue))
-                }));
-              }}
-            >
+            <View style={styles.sliderTrack}>
               <View style={[
                 styles.sliderFill, 
                 { width: `${settings.filterIntensity * 100}%` }
               ]} />
-              <View style={[
-                styles.sliderThumb,
-                { left: `${settings.filterIntensity * 100 - 3}%` }
-              ]} />
-            </TouchableOpacity>
+            </View>
+            <View style={styles.buttonRow}>
+              <TouchableOpacity 
+                style={styles.sliderButton}
+                onPress={() => handleIntensityChange(false)}
+                disabled={settings.filterIntensity <= 0.5}
+              >
+                <Text style={[
+                  styles.sliderButtonText,
+                  settings.filterIntensity <= 0.5 && styles.buttonTextDisabled
+                ]}>−</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.sliderButton}
+                onPress={() => handleIntensityChange(true)}
+                disabled={settings.filterIntensity >= 1}
+              >
+                <Text style={[
+                  styles.sliderButtonText,
+                  settings.filterIntensity >= 1 && styles.buttonTextDisabled
+                ]}>+</Text>
+              </TouchableOpacity>
+            </View>
 
-            <View style={[styles.sliderContainer, { marginTop: 24 }]}>
+            <View style={[styles.sliderContainer, { marginTop: 20 }]}>
               <Text style={styles.sliderLabelBold}>RESPONSE</Text>
               <Text style={styles.sliderValue}>{settings.hysteresisDelay}ms</Text>
             </View>
-            <TouchableOpacity 
-              style={styles.sliderTrack}
-              activeOpacity={0.8}
-              onPress={(e) => {
-                const { locationX } = e.nativeEvent;
-                const newValue = (locationX / 300) * 2000;
-                updateSettings((prev: PrivacySettings) => ({ 
-                  hysteresisDelay: Math.max(100, Math.min(2000, newValue))
-                }));
-              }}
-            >
+            <View style={styles.sliderTrack}>
               <View style={[
                 styles.sliderFill, 
                 { width: `${(settings.hysteresisDelay / 2000) * 100}%` }
               ]} />
-              <View style={[
-                styles.sliderThumb,
-                { left: `${(settings.hysteresisDelay / 2000) * 100 - 3}%` }
-              ]} />
-            </TouchableOpacity>
+            </View>
+            <View style={styles.buttonRow}>
+              <TouchableOpacity 
+                style={styles.sliderButton}
+                onPress={() => handleHysteresisChange(false)}
+                disabled={settings.hysteresisDelay <= 100}
+              >
+                <Text style={[
+                  styles.sliderButtonText,
+                  settings.hysteresisDelay <= 100 && styles.buttonTextDisabled
+                ]}>−</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.sliderButton}
+                onPress={() => handleHysteresisChange(true)}
+                disabled={settings.hysteresisDelay >= 2000}
+              >
+                <Text style={[
+                  styles.sliderButtonText,
+                  settings.hysteresisDelay >= 2000 && styles.buttonTextDisabled
+                ]}>+</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </>
       )}
@@ -485,15 +501,26 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.red,
     borderRadius: 4,
   },
-  sliderThumb: {
-    position: 'absolute',
-    top: -4,
-    width: 16,
-    height: 16,
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  sliderButton: {
+    width: '48%',
+    height: 44,
+    backgroundColor: COLORS.red,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: COLORS.red,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sliderButtonText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  buttonTextDisabled: {
+    color: '#888888',
   },
   footer: {
     alignItems: 'center',
