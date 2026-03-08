@@ -11,6 +11,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Linking,
 } from "react-native";
 import { usePrivacy } from "../context/PrivacyContext";
 import { PrivacySettings } from "../types";
@@ -26,9 +27,14 @@ const COLORS = {
   red: '#E53935',
   redDim: '#8B2828',
   text: '#FFFFFF',
-  textMuted: '#666666',
-  textDim: '#333333',
+  textMuted: '#AAAAAA',
   border: '#1F1F1F',
+};
+
+const SOCIAL_LINKS = {
+  github: 'https://github.com/TechNomadTalks',
+  linkedin: 'https://linkedin.com/in/technomadtalks',
+  tiktok: 'https://tiktok.com/@technomadtalks',
 };
 
 export function Settings({ onRequestPermission }: SettingsProps) {
@@ -72,6 +78,10 @@ export function Settings({ onRequestPermission }: SettingsProps) {
     if (!settings.enabled) return COLORS.textMuted;
     if (state.isProtected) return COLORS.red;
     return COLORS.textMuted;
+  };
+
+  const openLink = (url: string) => {
+    Linking.openURL(url).catch(() => {});
   };
 
   return (
@@ -121,7 +131,7 @@ export function Settings({ onRequestPermission }: SettingsProps) {
         <>
           <View style={styles.statusCard}>
             <View style={styles.statusRow}>
-              <Text style={styles.statusLabel}>Orientation</Text>
+              <Text style={styles.statusLabelBold}>ORIENTATION</Text>
               <Text style={styles.statusValue}>
                 {state.isViewingOrientation ? 'VIEWING' : 'EXPOSED'}
               </Text>
@@ -147,25 +157,25 @@ export function Settings({ onRequestPermission }: SettingsProps) {
             
             <View style={styles.row}>
               <View style={styles.rowContent}>
-                <Text style={styles.label}>Pattern</Text>
+                <Text style={styles.labelBold}>Pattern</Text>
               </View>
               <Switch
                 value={settings.enablePattern}
                 onValueChange={handleTogglePattern}
-                trackColor={{ false: COLORS.surfaceHover, true: COLORS.redDim }}
-                thumbColor={settings.enablePattern ? COLORS.red : COLORS.textMuted}
+                trackColor={{ false: COLORS.surfaceHover, true: COLORS.red }}
+                thumbColor={settings.enablePattern ? '#FFFFFF' : COLORS.textMuted}
               />
             </View>
 
             <View style={styles.row}>
               <View style={styles.rowContent}>
-                <Text style={styles.label}>Remember</Text>
+                <Text style={styles.labelBold}>Remember</Text>
               </View>
               <Switch
                 value={settings.persistSettings}
                 onValueChange={handleTogglePersist}
-                trackColor={{ false: COLORS.surfaceHover, true: COLORS.redDim }}
-                thumbColor={settings.persistSettings ? COLORS.red : COLORS.textMuted}
+                trackColor={{ false: COLORS.surfaceHover, true: COLORS.red }}
+                thumbColor={settings.persistSettings ? '#FFFFFF' : COLORS.textMuted}
               />
             </View>
           </View>
@@ -174,77 +184,82 @@ export function Settings({ onRequestPermission }: SettingsProps) {
             <Text style={styles.sectionTitle}>INTENSITY</Text>
             
             <View style={styles.sliderContainer}>
-              <Text style={styles.sliderLabel}>Opacity</Text>
+              <Text style={styles.sliderLabelBold}>OPACITY</Text>
               <Text style={styles.sliderValue}>{(settings.filterIntensity * 100).toFixed(0)}%</Text>
             </View>
-            <View style={styles.sliderTrack}>
+            <TouchableOpacity 
+              style={styles.sliderTrack}
+              activeOpacity={0.8}
+              onPress={(e) => {
+                const { locationX } = e.nativeEvent;
+                const newValue = locationX / 300;
+                updateSettings((prev: PrivacySettings) => ({ 
+                  filterIntensity: Math.max(0.5, Math.min(1, newValue))
+                }));
+              }}
+            >
               <View style={[
                 styles.sliderFill, 
                 { width: `${settings.filterIntensity * 100}%` }
               ]} />
-            </View>
-            <View style={styles.buttonRow}>
-              <TouchableOpacity 
-                style={styles.button}
-                onPress={() => handleIntensityChange(false)}
-                disabled={settings.filterIntensity <= 0.5}
-              >
-                <Text style={[
-                  styles.buttonText,
-                  settings.filterIntensity <= 0.5 && styles.buttonTextDisabled
-                ]}>−</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.button}
-                onPress={() => handleIntensityChange(true)}
-                disabled={settings.filterIntensity >= 1}
-              >
-                <Text style={[
-                  styles.buttonText,
-                  settings.filterIntensity >= 1 && styles.buttonTextDisabled
-                ]}>+</Text>
-              </TouchableOpacity>
-            </View>
+              <View style={[
+                styles.sliderThumb,
+                { left: `${settings.filterIntensity * 100 - 3}%` }
+              ]} />
+            </TouchableOpacity>
 
-            <View style={[styles.sliderContainer, styles.sliderMargin]}>
-              <Text style={styles.sliderLabel}>Response</Text>
+            <View style={[styles.sliderContainer, { marginTop: 24 }]}>
+              <Text style={styles.sliderLabelBold}>RESPONSE</Text>
               <Text style={styles.sliderValue}>{settings.hysteresisDelay}ms</Text>
             </View>
-            <View style={styles.sliderTrack}>
+            <TouchableOpacity 
+              style={styles.sliderTrack}
+              activeOpacity={0.8}
+              onPress={(e) => {
+                const { locationX } = e.nativeEvent;
+                const newValue = (locationX / 300) * 2000;
+                updateSettings((prev: PrivacySettings) => ({ 
+                  hysteresisDelay: Math.max(100, Math.min(2000, newValue))
+                }));
+              }}
+            >
               <View style={[
                 styles.sliderFill, 
                 { width: `${(settings.hysteresisDelay / 2000) * 100}%` }
               ]} />
-            </View>
-            <View style={styles.buttonRow}>
-              <TouchableOpacity 
-                style={styles.button}
-                onPress={() => handleHysteresisChange(false)}
-                disabled={settings.hysteresisDelay <= 100}
-              >
-                <Text style={[
-                  styles.buttonText,
-                  settings.hysteresisDelay <= 100 && styles.buttonTextDisabled
-                ]}>−</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.button}
-                onPress={() => handleHysteresisChange(true)}
-                disabled={settings.hysteresisDelay >= 2000}
-              >
-                <Text style={[
-                  styles.buttonText,
-                  settings.hysteresisDelay >= 2000 && styles.buttonTextDisabled
-                ]}>+</Text>
-              </TouchableOpacity>
-            </View>
+              <View style={[
+                styles.sliderThumb,
+                { left: `${(settings.hysteresisDelay / 2000) * 100 - 3}%` }
+              ]} />
+            </TouchableOpacity>
           </View>
         </>
       )}
 
       <View style={styles.footer}>
+        <Text style={styles.footerTextBold}>NO CAMERA • NO INTERNET</Text>
         <Text style={styles.footerText}>Uses device sensors only</Text>
-        <Text style={styles.footerText}>No camera • No internet</Text>
+      </View>
+
+      <View style={styles.socialContainer}>
+        <TouchableOpacity 
+          style={styles.socialButton}
+          onPress={() => openLink(SOCIAL_LINKS.github)}
+        >
+          <Text style={styles.socialIcon}>𝕏</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.socialButton}
+          onPress={() => openLink(SOCIAL_LINKS.linkedin)}
+        >
+          <Text style={styles.socialIcon}>in</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.socialButton}
+          onPress={() => openLink(SOCIAL_LINKS.tiktok)}
+        >
+          <Text style={styles.socialIcon}>♪</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -285,19 +300,7 @@ const styles = StyleSheet.create({
     color: '#888888',
     marginTop: 2,
     letterSpacing: 1,
-  },
-  statusBadge: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 4,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  statusBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
     fontWeight: '600',
-    letterSpacing: 2,
   },
   mainToggle: {
     flexDirection: 'row',
@@ -318,14 +321,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mainToggleLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   mainToggleDesc: {
     fontSize: 12,
     color: COLORS.textMuted,
+    fontWeight: '500',
   },
   toggleIndicator: {
     width: 48,
@@ -345,7 +349,20 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: COLORS.text,
+    backgroundColor: '#FFFFFF',
+  },
+  statusBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 4,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  statusBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 2,
   },
   statusCard: {
     backgroundColor: COLORS.surface,
@@ -361,28 +378,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  statusLabel: {
+  statusLabelBold: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    fontWeight: '700',
+    color: '#FFFFFF',
     letterSpacing: 1,
   },
   statusValue: {
     fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.text,
+    fontWeight: '700',
+    color: '#FFFFFF',
     letterSpacing: 1,
   },
   statusBar: {
-    height: 4,
+    height: 6,
     backgroundColor: COLORS.surfaceHover,
-    borderRadius: 2,
+    borderRadius: 3,
     marginBottom: 16,
     overflow: 'hidden',
   },
   statusBarFill: {
     height: '100%',
     backgroundColor: COLORS.red,
-    borderRadius: 2,
+    borderRadius: 3,
   },
   sensorRow: {
     flexDirection: 'row',
@@ -391,11 +409,13 @@ const styles = StyleSheet.create({
   },
   sensorLabel: {
     fontSize: 11,
-    color: COLORS.textDim,
+    fontWeight: '600',
+    color: COLORS.textMuted,
   },
   sensorValue: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    fontWeight: '700',
+    color: '#FFFFFF',
     fontFamily: 'monospace',
   },
   section: {
@@ -403,8 +423,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 10,
-    fontWeight: '600',
-    color: COLORS.textDim,
+    fontWeight: '700',
+    color: COLORS.red,
     letterSpacing: 2,
     marginBottom: 16,
   },
@@ -419,10 +439,10 @@ const styles = StyleSheet.create({
   rowContent: {
     flex: 1,
   },
-  label: {
+  labelBold: {
     fontSize: 14,
-    fontWeight: '500',
-    color: COLORS.text,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   sliderContainer: {
     flexDirection: 'row',
@@ -430,62 +450,75 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  sliderMargin: {
-    marginTop: 20,
-  },
-  sliderLabel: {
+  sliderLabelBold: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   sliderValue: {
     fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.text,
+    fontWeight: '700',
+    color: COLORS.red,
     fontFamily: 'monospace',
   },
   sliderTrack: {
-    height: 4,
+    height: 8,
     backgroundColor: COLORS.surfaceHover,
-    borderRadius: 2,
-    overflow: 'hidden',
+    borderRadius: 4,
+    overflow: 'visible',
+    position: 'relative',
   },
   sliderFill: {
     height: '100%',
     backgroundColor: COLORS.red,
-    borderRadius: 2,
+    borderRadius: 4,
   },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 12,
-  },
-  button: {
-    width: '48%',
-    height: 44,
-    backgroundColor: COLORS.surface,
+  sliderThumb: {
+    position: 'absolute',
+    top: -4,
+    width: 16,
+    height: 16,
     borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: COLORS.red,
+  },
+  footer: {
+    alignItems: 'center',
+    paddingTop: 20,
+    marginBottom: 20,
+  },
+  footerTextBold: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.red,
+    letterSpacing: 2,
+    marginBottom: 4,
+  },
+  footerText: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+    letterSpacing: 1,
+  },
+  socialContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 20,
+  },
+  socialButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.surface,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  buttonText: {
-    fontSize: 20,
-    fontWeight: '300',
-    color: COLORS.text,
-  },
-  buttonTextDisabled: {
-    color: COLORS.textDim,
-  },
-  footer: {
-    alignItems: 'center',
-    paddingTop: 20,
-  },
-  footerText: {
-    fontSize: 10,
-    color: COLORS.textDim,
-    letterSpacing: 1,
-    marginBottom: 4,
+  socialIcon: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
 
