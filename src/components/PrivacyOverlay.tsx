@@ -6,6 +6,7 @@ import React, { useEffect, useRef } from 'react';
 import { 
   Animated,
   StatusBar,
+  Platform,
 } from 'react-native';
 import { usePrivacy } from '../context/PrivacyContext';
 
@@ -22,15 +23,17 @@ export function PrivacyOverlay({
   const { state, settings } = usePrivacy();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  const useNativeDriver = Platform.OS !== 'web';
+
   useEffect(() => {
     const shouldShow = state.isProtected && settings.enabled;
     
     Animated.timing(fadeAnim, {
       toValue: shouldShow ? 1 : 0,
       duration: shouldShow ? 200 : 150,
-      useNativeDriver: true,
+      useNativeDriver,
     }).start();
-  }, [state.isProtected, settings.enabled, fadeAnim]);
+  }, [state.isProtected, settings.enabled, fadeAnim, useNativeDriver]);
 
   return (
     <Animated.View 

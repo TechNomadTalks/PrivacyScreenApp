@@ -1,8 +1,9 @@
 /**
- * useSensors Hook - Manages accelerometer and gyroscope sensors
+ * useSensors Hook - Manages accelerometer sensor
  */
 
 import { useEffect, useRef, useCallback, useState } from "react";
+import { Platform } from "react-native";
 import sensorService from "../services/SensorService";
 import { DeviceOrientation } from "../types";
 
@@ -15,22 +16,32 @@ export function useSensors({ enabled = true, onOrientationChange }: UseSensorsOp
   const isRunningRef = useRef(false);
   const onOrientationChangeRef = useRef(onOrientationChange);
   const [isRunning, setIsRunning] = useState(false);
+  const [isAvailable, setIsAvailable] = useState(true);
 
-  // Keep the callback ref updated
   useEffect(() => {
     onOrientationChangeRef.current = onOrientationChange;
   }, [onOrientationChange]);
 
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      setIsAvailable(false);
+      return;
+    }
+    setIsAvailable(true);
+  }, []);
+
   const startSensors = useCallback(() => {
-    if (isRunningRef.current) return;
+    if (isRunningRef.current || !isAvailable) return;
     
-    sensorService.startListening((orientation) => {
+    const success = sensorService.startListening((orientation) => {
       onOrientationChangeRef.current?.(orientation);
     });
     
-    isRunningRef.current = true;
-    setIsRunning(true);
-  }, []);
+    if (success) {
+      isRunningRef.current = true;
+      setIsRunning(true);
+    }
+  }, [isAvailable]);
 
   const stopSensors = useCallback(() => {
     if (!isRunningRef.current) return;
@@ -41,7 +52,7 @@ export function useSensors({ enabled = true, onOrientationChange }: UseSensorsOp
   }, []);
 
   useEffect(() => {
-    if (enabled) {
+    if (enabled && isAvailable) {
       startSensors();
     } else {
       stopSensors();
@@ -50,12 +61,13 @@ export function useSensors({ enabled = true, onOrientationChange }: UseSensorsOp
     return () => {
       stopSensors();
     };
-  }, [enabled, startSensors, stopSensors]);
+  }, [enabled, isAvailable, startSensors, stopSensors]);
 
   return {
     startSensors,
     stopSensors,
     isRunning: isRunning,
+    isAvailable,
   };
 }
 
