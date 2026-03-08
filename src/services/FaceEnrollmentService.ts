@@ -9,11 +9,31 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FaceDetector from 'expo-face-detector';
-import { FaceFeature } from 'expo-face-detector';
 
 const STORAGE_KEY = '@privacy_face_template';
 const TEMPLATE_VERSION = 'v1';
+
+interface FaceFeature {
+  bounds: {
+    origin: { x: number; y: number };
+    size: { width: number; height: number };
+  };
+  yawAngle?: number;
+  rollAngle?: number;
+  leftEyeOpenProbability?: number;
+  rightEyeOpenProbability?: number;
+  leftEyePosition?: { x: number; y: number };
+  rightEyePosition?: { x: number; y: number };
+  noseBasePosition?: { x: number; y: number };
+  mouthPosition?: { x: number; y: number };
+  leftMouthPosition?: { x: number; y: number };
+  rightMouthPosition?: { x: number; y: number };
+  leftEarPosition?: { x: number; y: number };
+  rightEarPosition?: { x: number; y: number };
+  leftCheekPosition?: { x: number; y: number };
+  rightCheekPosition?: { x: number; y: number };
+  bottomMouthPosition?: { x: number; y: number };
+}
 
 interface FaceTemplate {
   version: string;

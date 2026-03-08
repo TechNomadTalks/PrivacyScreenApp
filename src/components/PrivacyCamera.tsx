@@ -1,12 +1,12 @@
 /**
  * PrivacyCamera Component - Hidden camera for face detection
- * Uses expo-camera with expo-face-detector for face analysis
+ * Uses react-native-vision-camera with face detection
  */
 
 import React, { useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import { detectFacesAsync, FaceDetectorMode, FaceDetectorLandmarks, FaceDetectorClassifications } from 'expo-face-detector';
+import { Camera as VisionCamera, useCameraDevice, useCameraPermission, CameraDevice, Frame } from 'react-native-vision-camera';
+import { Camera, Face, FrameFaceDetectionOptions } from 'react-native-vision-camera-face-detector';
 import { usePrivacy } from '../context/PrivacyContext';
 import faceEnrollmentService from '../services/FaceEnrollmentService';
 
@@ -14,91 +14,63 @@ interface PrivacyCameraProps {
   children?: React.ReactNode;
 }
 
-interface FaceData {
-  bounds: {
-    size: { width: number; height: number };
-    origin: { x: number; y: number };
-  };
-  yawAngle?: number;
-  rollAngle?: number;
-  leftEyeOpenProbability?: number;
-  rightEyeOpenProbability?: number;
-  leftEyePosition?: { x: number; y: number };
-  rightEyePosition?: { x: number; y: number };
-  noseBasePosition?: { x: number; y: number };
-  mouthPosition?: { x: number; y: number };
-  leftEarPosition?: { x: number; y: number };
-  rightEarPosition?: { x: number; y: number };
-  leftCheekPosition?: { x: number; y: number };
-  rightCheekPosition?: { x: number; y: number };
-  bottomMouthPosition?: { x: number; y: number };
-}
-
-const faceDetectorOptions = {
-  mode: FaceDetectorMode.fast,
-  detectLandmarks: FaceDetectorLandmarks.all,
-  runClassifications: FaceDetectorClassifications.all,
-  minDetectionInterval: 100,
-  tracking: true,
-};
-
 export function PrivacyCamera({ children }: PrivacyCameraProps) {
   const { settings, updateFaceDetection, setCameraActive } = usePrivacy();
-  const [permission] = useCameraPermissions();
+  const { hasPermission, requestPermission } = useCameraPermission();
   
   const shouldEnable = settings.enabled && settings.enableCameraDetection;
-  const hasPermission = permission?.granted ?? false;
-  const cameraRef = useRef<CameraView>(null);
-  const lastProcessTimeRef = useRef<number>(0);
+  const device = useCameraDevice('front');
+  const cameraRef = useRef<VisionCamera>(null);
 
-  const detectAndProcessFaces = useCallback(async () => {
-    if (!cameraRef.current || !hasPermission) return;
-    
-    try {
-      const photo = await cameraRef.current.takePictureAsync({
-        skipProcessing: true,
-        base64: false,
-      });
-      
-      if (photo?.uri) {
-        const result = await detectFacesAsync(photo.uri, faceDetectorOptions);
-        const now = Date.now();
-        if (now - lastProcessTimeRef.current < 500) {
-          return;
-        }
-        lastProcessTimeRef.current = now;
-        
-        const faces = result.faces as FaceData[];
-        
-        if (faces.length === 0) {
-          updateFaceDetection(false, false, false, 0, false);
-          return;
-        }
-
-        if (faces.length > 1) {
-          updateFaceDetection(true, true, false, 0, false);
-          return;
-        }
-
-        const face = faces[0];
-        const avgEyeOpen = ((face.leftEyeOpenProbability || 0) + (face.rightEyeOpenProbability || 0)) / 2;
-        const eyesClosed = avgEyeOpen < settings.eyeOpenThreshold;
-        
-        let similarity = 1;
-        let isUserFace = true;
-        
-        if (settings.userFaceEnrolled) {
-          const compareResult = await faceEnrollmentService.compareFace(face as any);
-          similarity = compareResult.similarity;
-          isUserFace = compareResult.isSamePerson;
-        }
-        
-        updateFaceDetection(true, false, eyesClosed, similarity, isUserFace);
-      }
-    } catch (error) {
-      console.log('Face detection error:', error);
+  const handleFacesDetected = useCallback(async (faces: Face[], _frame: Frame) => {
+    if (faces.length === 0) {
+      updateFaceDetection(false, false, false, 0, false);
+      return;
     }
-  }, [hasPermission, settings.eyeOpenThreshold, settings.userFaceEnrolled, updateFaceDetection]);
+
+    if (faces.length > 1) {
+      updateFaceDetection(true, true, false, 0, false);
+      return;
+    }
+
+    const face = faces[0];
+    const avgEyeOpen = ((face.leftEyeOpenProbability || 0) + (face.rightEyeOpenProbability || 0)) / 2;
+    const eyesClosed = avgEyeOpen < settings.eyeOpenThreshold;
+    
+    let similarity = 1;
+    let isUserFace = true;
+    
+    if (settings.userFaceEnrolled) {
+      const faceForComparison = {
+        bounds: {
+          size: { width: face.bounds.width, height: face.bounds.height },
+          origin: { x: face.bounds.x, y: face.bounds.y },
+        },
+        yawAngle: face.yawAngle,
+        rollAngle: face.rollAngle,
+        leftEyeOpenProbability: face.leftEyeOpenProbability,
+        rightEyeOpenProbability: face.rightEyeOpenProbability,
+        leftEyePosition: face.leftEyeOpenProbability ? { x: 0, y: 0 } : undefined,
+        rightEyePosition: face.rightEyeOpenProbability ? { x: 0, y: 0 } : undefined,
+        noseBasePosition: { x: 0, y: 0 },
+        mouthPosition: { x: 0, y: 0 },
+      };
+      
+      const compareResult = await faceEnrollmentService.compareFace(faceForComparison as any);
+      similarity = compareResult.similarity;
+      isUserFace = compareResult.isSamePerson;
+    }
+    
+    updateFaceDetection(true, false, eyesClosed, similarity, isUserFace);
+  }, [settings.eyeOpenThreshold, settings.userFaceEnrolled, updateFaceDetection]);
+
+  const faceDetectionOptions: FrameFaceDetectionOptions = {
+    performanceMode: 'accurate',
+    landmarkMode: 'all',
+    contourMode: 'none',
+    classificationMode: 'all',
+    trackingEnabled: false,
+  };
 
   useEffect(() => {
     faceEnrollmentService.loadTemplate().then(template => {
@@ -109,33 +81,35 @@ export function PrivacyCamera({ children }: PrivacyCameraProps) {
   }, []);
 
   useEffect(() => {
-    if (shouldEnable && hasPermission) {
-      setCameraActive(true);
-      
-      const interval = setInterval(() => {
-        detectAndProcessFaces();
-      }, 1000);
-      
-      return () => clearInterval(interval);
-    } else {
-      setCameraActive(false);
+    if (!hasPermission && shouldEnable) {
+      requestPermission();
+    }
+  }, [hasPermission, shouldEnable, requestPermission]);
+
+  useEffect(() => {
+    setCameraActive(shouldEnable && hasPermission && !!device);
+    
+    if (!shouldEnable) {
       updateFaceDetection(false, false, false, 0, true);
     }
-  }, [shouldEnable, hasPermission, detectAndProcessFaces, setCameraActive, updateFaceDetection]);
+  }, [shouldEnable, hasPermission, device, setCameraActive, updateFaceDetection]);
 
-  if (!shouldEnable || !hasPermission) {
+  if (!shouldEnable || !hasPermission || !device) {
     return <>{children}</>;
   }
 
   return (
     <View style={styles.container} pointerEvents="none">
-      <CameraView
+      <Camera
         ref={cameraRef}
         style={styles.camera}
-        facing="front"
+        device={device}
+        isActive={true}
+        faceDetectionCallback={handleFacesDetected}
+        faceDetectionOptions={faceDetectionOptions}
       >
         {children}
-      </CameraView>
+      </Camera>
     </View>
   );
 }

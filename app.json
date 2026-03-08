@@ -24,6 +24,7 @@
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "package": "com.diyprivacy.app",
+      "minSdkVersion": 26,
       "permissions": [
         "HIGH_SAMPLING_RATE_SENSORS",
         "CAMERA"
