@@ -45,21 +45,43 @@ export function CalibrationScreen({ onComplete }: CalibrationScreenProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [samples, setSamples] = useState<DeviceOrientation[]>([]);
+  const [calibrationTime, setCalibrationTime] = useState(10);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const currentStepData = CALIBRATION_STEPS[currentStep];
 
   useEffect(() => {
     if (isCalibrating) {
+      setCalibrationTime(10);
+      
+      const countdown = setInterval(() => {
+        setCalibrationTime(prev => {
+          if (prev <= 1) {
+            clearInterval(countdown);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      const timeout = setTimeout(() => {
+        setIsCalibrating(false);
+      }, 10000);
+      
       const interval = setInterval(() => {
         setSamples(prev => [...prev, state.orientation]);
       }, 100);
-      return () => clearInterval(interval);
+      
+      return () => {
+        clearTimeout(timeout);
+        clearInterval(interval);
+        clearInterval(countdown);
+      };
     }
-  }, [isCalibrating, state.orientation]);
+  }, [isCalibrating]);
 
   useEffect(() => {
-    if (isCalibrating && samples.length >= 20) {
+    if (!isCalibrating && samples.length > 0) {
       processCalibration();
     }
   }, [samples, isCalibrating]);
@@ -89,7 +111,7 @@ export function CalibrationScreen({ onComplete }: CalibrationScreenProps) {
   };
 
   const processCalibration = () => {
-    if (samples.length < 20) return;
+    if (samples.length < 10) return;
 
     const pitchValues = samples.map(s => s.pitch);
     const rollValues = samples.map(s => s.roll);
@@ -178,7 +200,7 @@ export function CalibrationScreen({ onComplete }: CalibrationScreenProps) {
         <View style={styles.calibratingContainer}>
           <Animated.View style={[styles.calibrateRing, { opacity: pulseAnim }]} />
           <Text style={styles.calibratingText}>
-            {samples.length > 0 ? `${samples.length}/20` : 'CALIBRATING...'}
+            {calibrationTime > 0 ? `${calibrationTime}s` : 'COMPLETE'}
           </Text>
           <Text style={styles.sensorValues}>
             P: {state.orientation.pitch.toFixed(1)}° • R: {state.orientation.roll.toFixed(1)}°
