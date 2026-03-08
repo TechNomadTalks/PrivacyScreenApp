@@ -145,16 +145,20 @@ export function PrivacyProvider({ children }: PrivacyProviderProps) {
       minDistance = Math.min(minDistance, distance);
     }
 
-    const maxDistance = 2;
+    const maxDistance = 1;
     let protectionLevel = 0;
     if (profiles.length > 0) {
-      protectionLevel = Math.min(1, Math.max(0, minDistance / maxDistance));
+      if (minDistance <= 0) {
+        protectionLevel = 0;
+      } else {
+        protectionLevel = Math.min(1, minDistance);
+      }
     }
 
     protectionLevelRef.current = protectionLevel;
     dispatch({ type: "SET_PROTECTION_LEVEL", payload: protectionLevel });
 
-    const shouldBeProtected = protectionLevel > 0.3;
+    const shouldBeProtected = protectionLevel > 0.1;
 
     const now = Date.now();
     const hysteresisEnableDelay = settings.hysteresisDelay;

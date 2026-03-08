@@ -164,7 +164,7 @@ export function CalibrationScreen({ onComplete }: CalibrationScreenProps) {
     const pitchCenter = pitchValues.reduce((a, b) => a + b, 0) / pitchValues.length;
     const rollCenter = rollValues.reduce((a, b) => a + b, 0) / rollValues.length;
 
-    const tolerance = 15;
+    const tolerance = 8;
 
     const newProfile: CalibrationProfile = {
       id: currentStepData.id,
