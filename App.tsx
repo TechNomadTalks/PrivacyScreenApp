@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback } from "react";
 import { StyleSheet, View, StatusBar } from "react-native";
 
 import { PrivacyProvider, usePrivacy } from "./src/context/PrivacyContext";

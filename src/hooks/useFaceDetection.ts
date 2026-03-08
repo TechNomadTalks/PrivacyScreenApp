@@ -1,10 +1,9 @@
 /**
- * useFaceDetection Hook - Manages camera and face detection
+ * useFaceDetection Hook - Placeholder for future camera-based face detection
+ * Currently not used - orientation-only mode is active
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { CameraView } from 'expo-camera';
-import * as FaceDetector from 'expo-face-detector';
 import faceDetectionService from '../services/FaceDetectionService';
 import { FaceDetectionResult } from '../types';
 
@@ -25,25 +24,9 @@ interface FaceFeature {
 }
 
 export function useFaceDetection({ enabled = true, onFaceDetected }: UseFaceDetectionOptions = {}) {
-  const cameraRef = useRef<any>(null);
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const cameraRef = useRef<Record<string, unknown> | null>(null);
+  const [hasPermission] = useState<boolean>(true);
   const [isReady, setIsReady] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      const granted = await faceDetectionService.requestPermissions();
-      setHasPermission(granted);
-    })();
-  }, []);
-
-  const handleFacesDetected = useCallback((faces: FaceFeature[]) => {
-    const result = faceDetectionService.processFaces(faces);
-    onFaceDetected?.(result);
-  }, [onFaceDetected]);
-
-  const setCamera = useCallback((camera: any) => {
-    cameraRef.current = camera;
-  }, []);
 
   useEffect(() => {
     if (cameraRef.current && enabled && hasPermission) {
@@ -54,9 +37,9 @@ export function useFaceDetection({ enabled = true, onFaceDetected }: UseFaceDete
   }, [enabled, hasPermission]);
 
   const faceDetectorOptions = {
-    mode: FaceDetector.FaceDetectorMode.fast,
-    detectLandmarks: FaceDetector.FaceDetectorLandmarks.all,
-    runClassifications: FaceDetector.FaceDetectorClassifications.all,
+    mode: 1, // Fast mode
+    detectLandmarks: 2, // All landmarks
+    runClassifications: 2, // All classifications
     minDetectionInterval: 100,
     tracking: true,
   };
@@ -65,9 +48,12 @@ export function useFaceDetection({ enabled = true, onFaceDetected }: UseFaceDete
     cameraRef,
     hasPermission,
     isReady,
-    setCamera,
+    setCamera: (camera: Record<string, unknown> | null) => { cameraRef.current = camera; },
     faceDetectorOptions,
-    handleFacesDetected,
+    handleFacesDetected: (faces: FaceFeature[]) => {
+      const result = faceDetectionService.processFaces(faces);
+      onFaceDetected?.(result);
+    },
     cameraType: 'front' as const,
   };
 }

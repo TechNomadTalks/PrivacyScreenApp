@@ -2,7 +2,7 @@
  * useSensors Hook - Manages accelerometer and gyroscope sensors
  */
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import sensorService from "../services/SensorService";
 import { DeviceOrientation } from "../types";
 
@@ -12,8 +12,9 @@ interface UseSensorsOptions {
 }
 
 export function useSensors({ enabled = true, onOrientationChange }: UseSensorsOptions = {}) {
-  const isRunning = useRef(false);
+  const isRunningRef = useRef(false);
   const onOrientationChangeRef = useRef(onOrientationChange);
+  const [isRunning, setIsRunning] = useState(false);
 
   // Keep the callback ref updated
   useEffect(() => {
@@ -21,20 +22,22 @@ export function useSensors({ enabled = true, onOrientationChange }: UseSensorsOp
   }, [onOrientationChange]);
 
   const startSensors = useCallback(() => {
-    if (isRunning.current) return;
+    if (isRunningRef.current) return;
     
     sensorService.startListening((orientation) => {
       onOrientationChangeRef.current?.(orientation);
     });
     
-    isRunning.current = true;
+    isRunningRef.current = true;
+    setIsRunning(true);
   }, []);
 
   const stopSensors = useCallback(() => {
-    if (!isRunning.current) return;
+    if (!isRunningRef.current) return;
     
     sensorService.stopListening();
-    isRunning.current = false;
+    isRunningRef.current = false;
+    setIsRunning(false);
   }, []);
 
   useEffect(() => {
@@ -52,7 +55,7 @@ export function useSensors({ enabled = true, onOrientationChange }: UseSensorsOp
   return {
     startSensors,
     stopSensors,
-    isRunning: isRunning.current,
+    isRunning: isRunning,
   };
 }
 

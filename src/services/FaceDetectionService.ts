@@ -124,7 +124,7 @@ class FaceDetectionService {
     return this.lastFaceData;
   }
 
-  setCamera(camera: any): void {
+  setCamera(camera: Record<string, unknown> | null): void {
     // Not used in orientation-only mode
   }
 

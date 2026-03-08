@@ -21,18 +21,19 @@ export function Settings({ onRequestPermission }: SettingsProps) {
   const { settings, updateSettings, state } = usePrivacy();
 
   const handleToggleEnabled = () => {
-    updateSettings({ enabled: !settings.enabled });
+    updateSettings((prev: any) => ({ enabled: !prev.enabled }));
   };
 
   const handleTogglePattern = () => {
-    updateSettings({ enablePattern: !settings.enablePattern });
+    updateSettings((prev: any) => ({ enablePattern: !prev.enablePattern }));
   };
 
   const handleIntensityChange = (increase: boolean) => {
-    const newIntensity = increase 
-      ? Math.min(1, settings.filterIntensity + 0.1)
-      : Math.max(0.5, settings.filterIntensity - 0.1);
-    updateSettings({ filterIntensity: newIntensity });
+    updateSettings((prev: any) => ({ 
+      filterIntensity: increase 
+        ? Math.min(1, prev.filterIntensity + 0.1)
+        : Math.max(0.5, prev.filterIntensity - 0.1)
+    }));
   };
 
   const getStatusText = () => {

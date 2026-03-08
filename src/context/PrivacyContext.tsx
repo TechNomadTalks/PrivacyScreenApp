@@ -21,7 +21,7 @@ interface PrivacyContextType {
   thresholds: PrivacyThresholds;
   updateOrientation: (orientation: DeviceOrientation) => void;
   updateFaceDetection: (result: FaceDetectionResult) => void;
-  updateSettings: (settings: Partial<PrivacySettings>) => void;
+  updateSettings: (settings: Partial<PrivacySettings> | ((prev: PrivacySettings) => Partial<PrivacySettings>)) => void;
   togglePrivacy: () => void;
 }
 
@@ -134,13 +134,16 @@ export function PrivacyProvider({ children, onPrivacyChange }: PrivacyProviderPr
     dispatch({ type: "SET_MULTIPLE_FACES", payload: result.faceCount > 1 });
   }, []);
 
-  const updateSettings = useCallback((newSettings: Partial<PrivacySettings>) => {
-    setSettings(prev => ({ ...prev, ...newSettings }));
+  const updateSettings = useCallback((newSettings: Partial<PrivacySettings> | ((prev: PrivacySettings) => Partial<PrivacySettings>)) => {
+    setSettings(prev => {
+      const updates = typeof newSettings === 'function' ? newSettings(prev) : newSettings;
+      return { ...prev, ...updates };
+    });
   }, []);
 
   const togglePrivacy = useCallback(() => {
-    updateSettings({ enabled: !settings.enabled });
-  }, [settings.enabled, updateSettings]);
+    setSettings(prev => ({ ...prev, enabled: !prev.enabled }));
+  }, []);
 
   useEffect(() => {
     processPrivacyDecision();

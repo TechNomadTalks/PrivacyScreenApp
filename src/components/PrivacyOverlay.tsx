@@ -48,10 +48,7 @@ export function PrivacyOverlay({
     ]).start();
   }, [state.isProtected, settings.enabled, showPattern, fadeAnim, patternOpacity]);
 
-  // Don't render if privacy is disabled
-  if (!settings.enabled) {
-    return null;
-  }
+  // Only hide completely when disabled and not protected (for performance)
 
   return (
     <Animated.View 

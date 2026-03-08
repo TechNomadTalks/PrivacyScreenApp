@@ -11,8 +11,8 @@ export interface DeviceOrientation {
 export interface FaceDetectionResult {
   isDetected: boolean;
   faceCount: number;
-         yaw: number; // Head yaw angle in degrees
-  pitch: number;      // Head pitch angle in degrees
+  yaw: number;      // Head yaw angle in degrees
+  pitch: number;   // Head pitch angle in degrees
   leftEyeOpen: number; // Probability 0-1
   rightEyeOpen: number; // Probability 0-1
   bounds: {
