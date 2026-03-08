@@ -1,9 +1,10 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { StyleSheet, View, StatusBar, Text } from "react-native";
 
 import { PrivacyProvider, usePrivacy } from "./src/context/PrivacyContext";
 import { PrivacyOverlay } from "./src/components/PrivacyOverlay";
 import Settings from "./src/components/Settings";
+import CalibrationScreen from "./src/components/CalibrationScreen";
 import { useSensors } from "./src/hooks/useSensors";
 import { DeviceOrientation } from "./src/types";
 import ErrorBoundary from "./src/components/ErrorBoundary";
@@ -24,7 +25,8 @@ function LoadingScreen() {
 }
 
 function MainApp() {
-  const { state, settings, updateOrientation, isLoading } = usePrivacy();
+  const { state, settings, updateOrientation, isLoading, isCalibrated } = usePrivacy();
+  const [showCalibration, setShowCalibration] = useState(!isCalibrated);
 
   const handleOrientationChange = useCallback((orientation: DeviceOrientation) => {
     updateOrientation(orientation);
@@ -34,6 +36,12 @@ function MainApp() {
 
   if (isLoading) {
     return <LoadingScreen />;
+  }
+
+  if (showCalibration) {
+    return (
+      <CalibrationScreen onComplete={() => setShowCalibration(false)} />
+    );
   }
 
   return (

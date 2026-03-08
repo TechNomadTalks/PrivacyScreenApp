@@ -4,9 +4,9 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { PrivacySettings, DEFAULT_PRIVACY_SETTINGS } from '../types';
+import { PrivacySettings, DEFAULT_PRIVACY_SETTINGS, CalibrationData, DEFAULT_CALIBRATION } from '../types';
 
-const SETTINGS_KEY = '@privacy_screen_settings';
+const SETTINGS_KEY = '@diyprivacy_settings';
 
 function validateSettings(obj: unknown): PrivacySettings {
   if (!obj || typeof obj !== 'object') {
@@ -31,29 +31,37 @@ function validateSettings(obj: unknown): PrivacySettings {
   if (typeof settings.hysteresisDisableDelay === 'number' && Number.isFinite(settings.hysteresisDisableDelay)) {
     validated.hysteresisDisableDelay = Math.max(0, Math.min(5000, settings.hysteresisDisableDelay));
   }
-  if (typeof settings.yawThreshold === 'number' && Number.isFinite(settings.yawThreshold)) {
-    validated.yawThreshold = settings.yawThreshold;
-  }
-  if (typeof settings.pitchThresholdMin === 'number' && Number.isFinite(settings.pitchThresholdMin)) {
-    validated.pitchThresholdMin = settings.pitchThresholdMin;
-  }
-  if (typeof settings.pitchThresholdMax === 'number' && Number.isFinite(settings.pitchThresholdMax)) {
-    validated.pitchThresholdMax = settings.pitchThresholdMax;
-  }
-  if (typeof settings.rollThreshold === 'number' && Number.isFinite(settings.rollThreshold)) {
-    validated.rollThreshold = settings.rollThreshold;
-  }
-  if (typeof settings.pitchThresholdViewingMin === 'number' && Number.isFinite(settings.pitchThresholdViewingMin)) {
-    validated.pitchThresholdViewingMin = settings.pitchThresholdViewingMin;
-  }
-  if (typeof settings.pitchThresholdViewingMax === 'number' && Number.isFinite(settings.pitchThresholdViewingMax)) {
-    validated.pitchThresholdViewingMax = settings.pitchThresholdViewingMax;
-  }
-  if (typeof settings.eyeOpenThreshold === 'number' && Number.isFinite(settings.eyeOpenThreshold)) {
-    validated.eyeOpenThreshold = Math.max(0, Math.min(1, settings.eyeOpenThreshold));
-  }
   if (typeof settings.persistSettings === 'boolean') {
     validated.persistSettings = settings.persistSettings;
+  }
+
+  if (settings.calibration && typeof settings.calibration === 'object') {
+    const calib = settings.calibration as Record<string, unknown>;
+    const calibValidated: Partial<CalibrationData> = {};
+    
+    if (Array.isArray(calib.profiles)) {
+      calibValidated.profiles = calib.profiles.map((p: unknown) => {
+        const profile = p as Record<string, unknown>;
+        return {
+          id: String(profile.id || ''),
+          name: String(profile.name || ''),
+          pitchMin: Number(profile.pitchMin) || 0,
+          pitchMax: Number(profile.pitchMax) || 0,
+          rollMin: Number(profile.rollMin) || 0,
+          rollMax: Number(profile.rollMax) || 0,
+          pitchCenter: Number(profile.pitchCenter) || 0,
+          rollCenter: Number(profile.rollCenter) || 0,
+        };
+      });
+    }
+    if (typeof calib.isCalibrated === 'boolean') {
+      calibValidated.isCalibrated = calib.isCalibrated;
+    }
+    if (typeof calib.activeProfileId === 'string' || calib.activeProfileId === null) {
+      calibValidated.activeProfileId = calib.activeProfileId;
+    }
+    
+    validated.calibration = { ...DEFAULT_CALIBRATION, ...calibValidated };
   }
 
   return { ...DEFAULT_PRIVACY_SETTINGS, ...validated };

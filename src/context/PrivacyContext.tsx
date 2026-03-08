@@ -9,9 +9,7 @@ import {
   PrivacyAction, 
   PrivacySettings, 
   DeviceOrientation,
-  FaceDetectionResult,
   DEFAULT_PRIVACY_SETTINGS,
-  PrivacyThresholds
 } from "../types";
 import { SensorServiceClass, createSensorService } from "../services/SensorService";
 import SettingsStorage from "../services/SettingsStorage";
@@ -19,18 +17,17 @@ import SettingsStorage from "../services/SettingsStorage";
 interface PrivacyContextType {
   state: PrivacyState;
   settings: PrivacySettings;
-  thresholds: PrivacyThresholds;
   updateOrientation: (orientation: DeviceOrientation) => void;
-  updateFaceDetection: (result: FaceDetectionResult) => void;
   updateSettings: (settings: Partial<PrivacySettings> | ((prev: PrivacySettings) => Partial<PrivacySettings>)) => void;
   togglePrivacy: () => void;
   isLoading: boolean;
+  isCalibrated: boolean;
 }
 
 const initialState: PrivacyState = {
   isProtected: false,
   isUserLooking: false,
-  isViewingOrientation: true,
+  isViewingOrientation: false,
   faceDetected: false,
   multipleFacesDetected: false,
   orientation: { pitch: 0, roll: 0, yaw: 0 },
@@ -39,22 +36,12 @@ const initialState: PrivacyState = {
 
 function privacyReducer(state: PrivacyState, action: PrivacyAction): PrivacyState {
   switch (action.type) {
-    case "SET_LOOKING":
-      return { ...state, isUserLooking: action.payload };
     case "SET_ORIENTATION":
       return { ...state, orientation: action.payload };
     case "SET_VIEWING_ORIENTATION":
       return { ...state, isViewingOrientation: action.payload };
-    case "SET_FACE_DETECTED":
-      return { ...state, faceDetected: action.payload };
-    case "SET_MULTIPLE_FACES":
-      return { ...state, multipleFacesDetected: action.payload };
     case "SET_PROTECTED":
       return { ...state, isProtected: action.payload };
-    case "SET_CAMERA_ACTIVE":
-      return { ...state, cameraActive: action.payload };
-    case "UPDATE_STATE":
-      return { ...state, ...action.payload };
     default:
       return state;
   }
@@ -64,39 +51,33 @@ const PrivacyContext = createContext<PrivacyContextType | undefined>(undefined);
 
 interface PrivacyProviderProps {
   children: React.ReactNode;
-  onPrivacyChange?: (isProtected: boolean) => void;
 }
 
-export function PrivacyProvider({ children, onPrivacyChange }: PrivacyProviderProps) {
+function isOrientationInProfile(
+  orientation: DeviceOrientation, 
+  profile: { pitchMin: number; pitchMax: number; rollMin: number; rollMax: number }
+): boolean {
+  const { pitch, roll } = orientation;
+  return (
+    pitch >= profile.pitchMin &&
+    pitch <= profile.pitchMax &&
+    roll >= profile.rollMin &&
+    roll <= profile.rollMax
+  );
+}
+
+export function PrivacyProvider({ children }: PrivacyProviderProps) {
   const [state, dispatch] = useReducer(privacyReducer, initialState);
   const [settings, setSettings] = React.useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
   const [isLoading, setIsLoading] = React.useState(true);
   
-  const thresholds: PrivacyThresholds = useMemo(() => ({
-    yawThreshold: settings.yawThreshold,
-    pitchThresholdMin: settings.pitchThresholdMin,
-    pitchThresholdMax: settings.pitchThresholdMax,
-    rollThreshold: settings.rollThreshold,
-    pitchThresholdViewingMin: settings.pitchThresholdViewingMin,
-    pitchThresholdViewingMax: settings.pitchThresholdViewingMax,
-    eyeOpenThreshold: settings.eyeOpenThreshold,
-  }), [
-    settings.yawThreshold,
-    settings.pitchThresholdMin,
-    settings.pitchThresholdMax,
-    settings.rollThreshold,
-    settings.pitchThresholdViewingMin,
-    settings.pitchThresholdViewingMax,
-    settings.eyeOpenThreshold,
-  ]);
-  
   const isProtectedRef = useRef(false);
   const lastPrivacyEnableTime = useRef<number>(0);
   const lastPrivacyDisableTime = useRef<number>(0);
+  const orientationHistoryRef = useRef<DeviceOrientation[]>([]);
   
   const sensorService = useMemo(() => createSensorService(), []);
   
-  // Load settings on mount
   useEffect(() => {
     const loadSettings = async () => {
       try {
@@ -112,16 +93,12 @@ export function PrivacyProvider({ children, onPrivacyChange }: PrivacyProviderPr
     loadSettings();
   }, []);
 
-  // Persist settings when they change (if enabled)
   useEffect(() => {
     if (!isLoading && settings.persistSettings) {
-      SettingsStorage.saveSettings(settings).catch(error => {
-        console.error('[PrivacyContext] Failed to save settings:', error);
-      });
+      SettingsStorage.saveSettings(settings).catch(() => {});
     }
   }, [settings, isLoading]);
 
-  // Handle app state changes - reset sensor service when app comes to foreground
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
@@ -137,23 +114,25 @@ export function PrivacyProvider({ children, onPrivacyChange }: PrivacyProviderPr
     };
   }, [sensorService]);
 
-  // Memoize the callback to prevent unnecessary re-renders
-  const handlePrivacyChange = useCallback((isProtected: boolean) => {
-    onPrivacyChange?.(isProtected);
-  }, [onPrivacyChange]);
-
-  const processPrivacyDecision = useCallback(() => {
+  const processPrivacyDecision = useCallback((orientation: DeviceOrientation) => {
     if (!settings.enabled) {
       if (isProtectedRef.current) {
         dispatch({ type: "SET_PROTECTED", payload: false });
         isProtectedRef.current = false;
-        handlePrivacyChange(false);
       }
       return;
     }
 
-    const viewingOrientation = SensorServiceClass.isViewingOrientation(state.orientation, thresholds);
-    const shouldBeProtected = !viewingOrientation;
+    orientationHistoryRef.current.push(orientation);
+    if (orientationHistoryRef.current.length > 10) {
+      orientationHistoryRef.current.shift();
+    }
+
+    const inAnyProfile = settings.calibration.profiles.some(profile => 
+      isOrientationInProfile(orientation, profile)
+    );
+
+    const shouldBeProtected = !inAnyProfile;
 
     const now = Date.now();
     const hysteresisEnableDelay = settings.hysteresisDelay;
@@ -164,17 +143,15 @@ export function PrivacyProvider({ children, onPrivacyChange }: PrivacyProviderPr
         lastPrivacyEnableTime.current = now;
         isProtectedRef.current = true;
         dispatch({ type: "SET_PROTECTED", payload: true });
-        handlePrivacyChange(true);
       }
     } else if (!shouldBeProtected && isProtectedRef.current) {
       if (now - lastPrivacyEnableTime.current > hysteresisDisableDelay) {
         lastPrivacyDisableTime.current = now;
         isProtectedRef.current = false;
         dispatch({ type: "SET_PROTECTED", payload: false });
-        handlePrivacyChange(false);
       }
     }
-  }, [settings, state.orientation, thresholds, handlePrivacyChange]);
+  }, [settings]);
 
   const updateOrientation = useCallback((orientation: DeviceOrientation) => {
     if (!orientation || typeof orientation.pitch !== 'number' || typeof orientation.roll !== 'number') {
@@ -188,16 +165,14 @@ export function PrivacyProvider({ children, onPrivacyChange }: PrivacyProviderPr
     };
     
     dispatch({ type: "SET_ORIENTATION", payload: validOrientation });
-    dispatch({ 
-      type: "SET_VIEWING_ORIENTATION", 
-      payload: SensorServiceClass.isViewingOrientation(validOrientation, thresholds) 
-    });
-  }, [thresholds]);
-
-  const updateFaceDetection = useCallback((result: FaceDetectionResult) => {
-    dispatch({ type: "SET_FACE_DETECTED", payload: result.isDetected });
-    dispatch({ type: "SET_MULTIPLE_FACES", payload: result.faceCount > 1 });
-  }, []);
+    
+    const isViewing = settings.calibration.profiles.some(profile => 
+      isOrientationInProfile(validOrientation, profile)
+    );
+    dispatch({ type: "SET_VIEWING_ORIENTATION", payload: isViewing });
+    
+    processPrivacyDecision(validOrientation);
+  }, [settings, processPrivacyDecision]);
 
   const updateSettings = useCallback((newSettings: Partial<PrivacySettings> | ((prev: PrivacySettings) => Partial<PrivacySettings>)) => {
     setSettings(prev => {
@@ -210,20 +185,15 @@ export function PrivacyProvider({ children, onPrivacyChange }: PrivacyProviderPr
     setSettings(prev => ({ ...prev, enabled: !prev.enabled }));
   }, []);
 
-  useEffect(() => {
-    processPrivacyDecision();
-  }, [processPrivacyDecision]);
-
   const value = useMemo<PrivacyContextType>(() => ({
     state,
     settings,
-    thresholds,
     updateOrientation,
-    updateFaceDetection,
     updateSettings,
     togglePrivacy,
     isLoading,
-  }), [state, settings, thresholds, updateOrientation, updateFaceDetection, updateSettings, togglePrivacy, isLoading]);
+    isCalibrated: settings.calibration.isCalibrated,
+  }), [state, settings, updateOrientation, updateSettings, togglePrivacy, isLoading]);
 
   return (
     <PrivacyContext.Provider value={value}>
