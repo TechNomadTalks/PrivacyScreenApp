@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Privacy Screen",
+    "slug": "PrivacyScreen",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#121212"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMotionUsageDescription": "Privacy Screen needs motion sensor access to detect device orientation."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#121212",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "package": "com.privacyscreen.app",
+      "permissions": [
+        "HIGH_SAMPLING_RATE_SENSORS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Privacy Screen needs motion sensor access to detect device orientation."
+        }
+      ]
+    ]
+  }
+}
